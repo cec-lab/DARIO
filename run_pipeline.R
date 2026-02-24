@@ -1,4 +1,4 @@
-# Version 0.0.1
+# Version 0.0.1 First stable version
 
 #Clear existing data and graphics
 rm(list=ls())
