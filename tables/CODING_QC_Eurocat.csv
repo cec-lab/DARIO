@@ -28,14 +28,7 @@ RESIDMO;NA;is.na(residmo);
 TOTPREG;NA;!is.na(totpreg) & !(totpreg %in% c(0:12, 99));
 WHENDISC;PRESYN;whendisc == 6 & presyn != 1 & !(is.na(syndrome));
 WHENDISC;NA;is.na(whendisc) ;
-WHENDISC;PREMAL 1;whendisc == 6 & !(premal1 %in% c(2,9));
-WHENDISC;PREMAL 2;whendisc == 6 & !(premal2 %in% c(2,9));
-WHENDISC;PREMAL 3;whendisc == 6 & !(premal3 %in% c(2,9));
-WHENDISC;PREMAL 4;whendisc == 6 & !(premal4 %in% c(2,9));
-WHENDISC;PREMAL 5;whendisc == 6 & !(premal5 %in% c(2,9));
-WHENDISC;PREMAL 6;whendisc == 6 & !(premal6 %in% c(2,9));
-WHENDISC;PREMAL 7;whendisc == 6 & !(premal7 %in% c(2,9));
-WHENDISC;PREMAL 8;whendisc == 6 & !(premal8 %in% c(2,9));
+WHENDISC;PREMAL 1 - PREMAL 8;"whendisc == 6 & (is.na(syndrome) | syndrome == """") & (!(premal1 %in% c(2,9)) |!(premal2 %in% c(2,9)) |!(premal3 %in% c(2,9)) |!(premal4 %in% c(2,9)) |!(premal5 %in% c(2,9)) |!(premal6 %in% c(2,9)) |!(premal7 %in% c(2,9)) |!(premal8 %in% c(2,9)))";
 WHENDISC;SURVIVAL;whendisc == 7 & survival == 1;
 WHENDISC;CONDISC;whendisc == 6 & condisc != 1;RIFARE VEDI TAB VERIFICATION ROUTINE EXTENDED
 WHENDISC;CONDISC;whendisc == 7 & condisc != 2;
