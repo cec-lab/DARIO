@@ -1,7 +1,7 @@
 ﻿VARIABILE;VARIABILE DI CONFRONTO;REGOLA;NOTE
 CENTRE;NA;is.na(centre);
 NUMLOC;NA;is.na(numloc);
-BIRTH_DATE;DEATH_DATE;!is.na(birth_date) & !is.na(death_date) & !grepl('X', birth_date) & !grepl('X', death_date) & as.Date(death_date, '%d/%m/%Y') < as.Date(birth_date, '%d/%m/%Y');
+BIRTH_DATE;DEATH_DATE;"survival == 2 & (!is.na(death_date | death_date == """" | !is.na(birth_date | birth_date == """") & (ymd(death_date)  - ymd(birth_date ) < -7 | ymd(death_date)  - ymd(birth_date ) > 7)";
 SEX;MALFO 1:8;"sex == 3 & !(grepl(""^Q56"", malfo1) |grepl(""^Q56"", malfo2) |grepl(""^Q56"", malfo3) |grepl(""^Q56"", malfo4) |grepl(""^Q56"", malfo5) |grepl(""^Q56"", malfo6) |grepl(""^Q56"", malfo7) |grepl(""^Q56"", malfo8))";REGOLA DA CODICE A.P.
 SEX;TYPE;sex == 9 & type %in% c(1,2);REGOLA DA CODICE A.P.
 SEX;PM;sex == 9 & !(pm %in% c(3,4,9));REGOLA DA CODICE A.P.
