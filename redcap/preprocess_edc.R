@@ -1,7 +1,7 @@
 #Load Hmisc library
 library(Hmisc)
 #Read Data
-data <- read_csv(paste0('/home/imer/works/DARIO/redcap/',rcFileName))
+data <- read_csv(paste0(baseDir,"/redcap/",rcFileName))
 #Setting Labels
 
 label(data$record_id)="RECORD ID"

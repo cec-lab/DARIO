@@ -2,7 +2,7 @@
 
 # SOURCE CONFIGURATION FILE ----
 
-source("/home/imer/works/DARIO/config.R")
+source(paste0(baseDir,"/config.R"))
 
 # SET WORKING DIRECTORY ----
 

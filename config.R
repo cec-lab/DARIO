@@ -19,10 +19,10 @@
 
 # PATH ----
 
-baseDir="/home/imer/works/DARIO"
+baseDir= getwd()
 tablesDir=paste0(baseDir,"/tables")
 redcapDir=paste0(baseDir,"/redcap")
-cedapDir=paste0(baseDir,"/cedap/2023")
+cedapDir=paste0(baseDir,"/cedap")
 sdoDir="/home/imer/works/algo_sdo/stage_12"
 sdoDirMerge="/home/imer/works/algo_sdo/export"
 exportDir=paste0(baseDir,"/export")
@@ -45,7 +45,7 @@ Year = 2023
 
 ## Files ----
 
-rcFileName <- "IMERTEST-Coorte2023_DATA_2025-08-04_1605.csv"
+rcFileName <- "IMERTEST-Coorte2023_DATA_2025-05-23_1244.csv"
 rcRFileName <- "preprocess_edc.r"
 cedapFileName <- "cedap_plus_2023.csv"
 sdoFileName <- "sdo_stage_11b_clinical_rev_export_final.xlsx"
