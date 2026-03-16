@@ -1,7 +1,9 @@
 # STAGE 1
 # LINKAGE WITH CEDAP PLUS
 
-source(paste0(baseDir, "/functions.R"))
+baseDir=getwd()
+source(paste0(baseDir,"/config.R"), echo = T)
+source(paste0(baseDir,"/functions.R"), echo = T)
 
 # LINKAGE KEY ----
 
@@ -44,5 +46,8 @@ write_csv2(redcapData_cedap_linked, file=paste0(stage1Dir, "/redcapData_cedap_li
 write_csv2(redcapData_cedap_nonlinked, file=paste0(stage1Dir, "/redcapData_cedap_nonlinked_tmp.csv"))
 
 write_csv2(redcapData, file=paste0(exportDir, "/redcapData_stage_1_1.csv"))
+
+gitDir <- file.path(Sys.getenv("HOME"), "Desktop", "git_hub", "SARA", "export")
+write_csv2(redcapData, file = file.path(gitDir, "redcapData_stage_1_1.csv"))
 
 

@@ -4,7 +4,9 @@ graphics.off()
 
 # SOURCE CONFIGURATION FILE ----
 
-source("/home/imer/works/DARIO/config.R")
+baseDir=getwd()
+source(paste0(baseDir,"/config.R"), echo = T)
+source(paste0(baseDir,"/functions.R"), echo = T)
 
 # SET WORKING DIRECTORY ----
 
@@ -12,13 +14,21 @@ setwd(baseDir)
 
 # DATA LOAD ----
 
-redcapData <- read_csv2(paste0(exportDir, "/redcapData_stage_4_1.csv"))
+redcapData <- read_csv2(paste0(exportDir, "/2023/redcapData_stage_4_1.csv"))
 
-sdoData <- read_csv2(paste0(sdoDirMerge, "/", sdoFileNameMerge))
+sdoData <- read_csv2(
+  paste0(sdoDirMerge, "/", sdoFileNameMerge),
+  col_types = cols(
+    birth_date = col_character(),
+    death_date = col_character(),
+    datemo = col_character()
+  )
+)
 
 sdoData <- sdoData |> rename(data_source = source)
 sdoData <- sdoData |> rename(prog_paz_neo = prog_paz)
 sdoData$record_id <- as.character(sdoData$record_id)
+
 
 
 # REMOVE SDO ALREADY RECORDED IN REDCAP ----
@@ -29,22 +39,43 @@ sdoRemovedData <- sdoData[removeSDO,]
 
 sdoMergeData <- sdoData[-removeSDO,]
 
+# HARMONIZE redCap - SDO DATASET ----
 
-# HARMONIZE SDO DATASET ----
+date_vars <- c("birth_date", "death_date", "datemo")
 
-redcapData$birth_date <- ymd(redcapData$birth_date)
-redcapData$birth_date <- str_replace_all(redcapData$birth_date, "-", "/")
+for (v in date_vars) {
+  
+  redcapData[[v]] <- case_when(
+    
+    # Codici speciali vecchi formato 6 cifre
+    redcapData[[v]] == "222222" ~ "2222/22/22",
+    redcapData[[v]] == "333333" ~ "3333/33/33",
+    redcapData[[v]] == "999999" ~ "xxxx/xx/xx",
+    redcapData[[v]] == "xx-xx-xxxx" ~ "xxxx/xx/xx",
+    
+    # Date nel formato gg/mm/aaaa → converti in aaaa/mm/gg
+    grepl("^\\d{2}/\\d{2}/\\d{4}$", redcapData[[v]]) ~
+      format(as.Date(redcapData[[v]], "%d/%m/%Y"), "%Y/%m/%d"),
+    
+    # Lascia tutto il resto invariato
+    TRUE ~ redcapData[[v]]
+  )
+  
+  redcapData[[v]] <- as.character(redcapData[[v]])
+}
+
+
 redcapData$data_source <- "EDC"
 
-sdoMergeData$birth_date <- str_replace_all(sdoMergeData$birth_date, "-", "/")
-sdoMergeData$death_date <- str_replace_all(sdoMergeData$death_date, "-", "/")
-sdoMergeData$datemo <- str_replace_all(sdoMergeData$datemo, "-", "/")
-sdoMergeData$pm_notes <- ""
-sdoMergeData$sp_illbef1 <- ""
-sdoMergeData$sp_illbef2 <- ""
-sdoMergeData$sp_illdur1 <- ""
-sdoMergeData$sp_illdur2 <- ""
-sdoMergeData$birthCenter <- ""
+# sdoMergeData$birth_date <- str_replace_all(sdoMergeData$birth_date, "-", "/")
+# sdoMergeData$death_date <- str_replace_all(sdoMergeData$death_date, "-", "/")
+# sdoMergeData$datemo <- str_replace_all(sdoMergeData$datemo, "-", "/")
+sdoMergeData$pm_notes <- NA
+sdoMergeData$sp_illbef1 <- NA
+sdoMergeData$sp_illbef2 <- NA
+sdoMergeData$sp_illdur1 <- NA
+sdoMergeData$sp_illdur2 <- NA
+#sdoMergeData$birthCenter <- ""
 sdoMergeData$amniocentesis <- 9
 sdoMergeData$chorvilsam <- 9
 sdoMergeData$ultrason <- 9
@@ -59,18 +90,19 @@ sdoMergeData <- sdoMergeData[, ordered_cols]
 
 eurocatData <- rbind(redcapData, sdoMergeData)
 
-eurocatData$premal1[redcapData$premal1 == 3] <- 1
-eurocatData$premal2[redcapData$premal2 == 3] <- 1
-eurocatData$premal3[redcapData$premal3 == 3] <- 1
-eurocatData$premal4[redcapData$premal4 == 3] <- 1
-eurocatData$premal5[redcapData$premal5 == 3] <- 1
-eurocatData$premal6[redcapData$premal6 == 3] <- 1
-eurocatData$premal7[redcapData$premal7 == 3] <- 1
-eurocatData$premal8[redcapData$premal8 == 3] <- 1
-
-eurocatData$presyn[redcapData$presyn == 3] <- 1
-
-eurocatData$type[eurocatData$survival == 1] <- 1
+# MODIFICHE AD-HOC
+# eurocatData$premal1[redcapData$premal1 == 3] <- 1
+# eurocatData$premal2[redcapData$premal2 == 3] <- 1
+# eurocatData$premal3[redcapData$premal3 == 3] <- 1
+# eurocatData$premal4[redcapData$premal4 == 3] <- 1
+# eurocatData$premal5[redcapData$premal5 == 3] <- 1
+# eurocatData$premal6[redcapData$premal6 == 3] <- 1
+# eurocatData$premal7[redcapData$premal7 == 3] <- 1
+# eurocatData$premal8[redcapData$premal8 == 3] <- 1
+# 
+# eurocatData$presyn[redcapData$presyn == 3] <- 1
+# 
+# eurocatData$type[eurocatData$survival == 1] <- 1
 
 ## NUMLOC generation ----
 

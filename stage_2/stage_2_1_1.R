@@ -4,7 +4,9 @@ graphics.off()
 
 # SOURCE CONFIGURATION FILE ----
 
-source("/home/imer/works/DARIO/config.R")
+baseDir=getwd()
+source(paste0(baseDir,"/config.R"), echo = T)
+source(paste0(baseDir,"/functions.R"), echo = T)
 
 # SET WORKING DIRECTORY ----
 

@@ -26,6 +26,7 @@ cedapDir=paste0(baseDir,"/cedap")
 sdoDir="/home/imer/works/algo_sdo/stage_12"
 sdoDirMerge="/home/imer/works/algo_sdo/export"
 exportDir=paste0(baseDir,"/export")
+gitDir <- file.path(Sys.getenv("HOME"), "Desktop", "git_hub", "SARA", "export")
 stage0Dir=paste0(baseDir,"/stage_0")
 stage1Dir=paste0(baseDir,"/stage_1")
 stage2Dir=paste0(baseDir,"/stage_2")

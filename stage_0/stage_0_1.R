@@ -2,7 +2,9 @@
 
 # SOURCE CONFIGURATION FILE ----
 
-source(paste0(baseDir,"/config.R"))
+baseDir=getwd()
+source(paste0(baseDir,"/config.R"), echo = T)
+source(paste0(baseDir,"/functions.R"), echo = T)
 
 # SET WORKING DIRECTORY ----
 
@@ -22,6 +24,7 @@ birthCenters <- read_csv2(paste0(tablesDir,"/centri_imer.csv"))
 
 # FILTER BY COHORT YEAR ----
 
+redcapData$birth_date <- suppressWarnings(dmy(redcapData$birth_date))
 redcapData$cohort <- year(redcapData$birth_date)
 redcapData <- redcapData |> filter(cohort==Year)
 
