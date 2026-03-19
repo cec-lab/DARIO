@@ -163,7 +163,7 @@ label(data$genrem)="General additional comments"
 label(data$file_upload)="File upload (photo, video, scanned documents)"
 label(data$comments_and_documents_complete)="Complete?"
 label(data$record_validation)="Record validation"
-label(data$record_validation_complete)="Complete?"
+#label(data$record_validation_complete)="Complete?"
 #Setting Units
 
 
