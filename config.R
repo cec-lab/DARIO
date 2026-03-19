@@ -45,7 +45,7 @@ Year = 2023
 
 ## Files ----
 
-rcFileName <- "IMERTEST-Coorte2023_DATA_2025-05-23_1244.csv"
+rcFileName <- "redcap_test_data.csv"
 rcRFileName <- "preprocess_edc.r"
 cedapFileName <- "cedap_plus_2023.csv"
 sdoFileName <- "sdo_stage_11b_clinical_rev_export_final.xlsx"
