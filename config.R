@@ -23,10 +23,11 @@ baseDir= getwd()
 tablesDir=paste0(baseDir,"/tables")
 redcapDir=paste0(baseDir,"/redcap")
 cedapDir=paste0(baseDir,"/cedap")
-sdoDir="/home/imer/works/algo_sdo/stage_12"
-sdoDirMerge="/home/imer/works/algo_sdo/export"
 exportDir=paste0(baseDir,"/export")
 gitDir <- file.path(Sys.getenv("HOME"), "Desktop", "git_hub", "SARA", "export")
+gitDir_templates <- file.path(Sys.getenv("HOME"), "Desktop", "git_hub", "SARA")
+sdoDir <- file.path(gitDir_templates, "stage_12")
+sdoDirMerge <- file.path(gitDir, "export")
 stage0Dir=paste0(baseDir,"/stage_0")
 stage1Dir=paste0(baseDir,"/stage_1")
 stage2Dir=paste0(baseDir,"/stage_2")
@@ -49,7 +50,7 @@ Year = 2023
 rcFileName <- "redcap_test_data.csv"
 rcRFileName <- "preprocess_edc.r"
 cedapFileName <- "cedap_plus_2023.csv"
-sdoFileName <- "sdo_stage_11b_clinical_rev_export_final.xlsx"
+sdoFileName <- "sdo_stage_11b_clinical_rev_export_final.csv"
 sdoFileNameMerge <- "sdo_stage12_transcode_export.csv"
 
 ## stage_2 variables list ----

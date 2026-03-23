@@ -15,9 +15,10 @@ setwd(baseDir)
 # DATA LOAD ----
 
 redcapData_stege_1_1_revised <- read_csv2(paste0(exportDir, "/redcapData_stage_1_1.csv"))
-View(redcapData_stege_1_1_revised)
 
-redcapData <- redcapData_stege_1_1_revised[, stage_2_vars_list]
+redcapData <- redcapData_stege_1_1_revised |> 
+  select(any_of(stage_2_vars_list))
+
 rm(redcapData_stege_1_1_revised)
 
 # IMPORT CEDAP DATA ----
@@ -38,7 +39,7 @@ cedap_linked_vars <- c(
   "natimor",
   "METODO",
   "TABACCO"
-)
+) 
 
 cedapData <- read_csv2(paste0(cedapDir, "/", cedapFileName), locale = locale(encoding = "WINDOWS-1252"))
 cedapData <- cedapData[, cedap_linked_vars]

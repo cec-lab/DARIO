@@ -16,7 +16,9 @@ setwd(baseDir)
 
 redcapData <- read_csv2(paste0(exportDir, "/redcapData_stage_2_1.csv"))
 
-sdoData <- read_excel(paste0(sdoDir, "/", sdoFileName))
+sdoData <- read_csv2(file.path(sdoDir, sdoFileName))
+
+sdoData$PROG_PAZ <- as.character(sdoData$PROG_PAZ)
 
 # LINKAGE SURGERY ----
 
