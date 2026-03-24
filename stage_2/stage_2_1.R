@@ -14,7 +14,7 @@ setwd(baseDir)
 
 # DATA LOAD ----
 
-redcapData_stage_1_1_revised <- read_csv2(paste0(exportDir, "/redcapData_stege_1_1_revised_b.csv"))
+redcapData_stage_1_1_revised <- read_csv2(paste0(exportDir, "/redcapData_stage_1_1_revised.csv"))
 
 redcapData <- redcapData_stage_1_1_revised |> select(any_of(stage_2_vars_list))
 rm(redcapData_stage_1_1_revised)

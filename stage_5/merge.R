@@ -14,10 +14,10 @@ setwd(baseDir)
 
 # DATA LOAD ----
 
-redcapData <- read_csv2(paste0(exportDir, "/2023/redcapData_stage_4_1.csv"))
+redcapData <- read_csv2(paste0(exportDir, "/redcapData_stage_4_1.csv"))
 
 sdoData <- read_csv2(
-  paste0(sdoDirMerge, "/", sdoFileNameMerge),
+  paste0(gitDir, "/", sdoFileNameMerge),
   col_types = cols(
     birth_date = col_character(),
     death_date = col_character(),
@@ -43,25 +43,34 @@ sdoMergeData <- sdoData[-removeSDO,]
 
 date_vars <- c("birth_date", "death_date", "datemo")
 
-for (v in date_vars) {
+clean_date <- function(x){
   
-  redcapData[[v]] <- case_when(
-    
-    # Codici speciali vecchi formato 6 cifre
-    redcapData[[v]] == "222222" ~ "2222/22/22",
-    redcapData[[v]] == "333333" ~ "3333/33/33",
-    redcapData[[v]] == "999999" ~ "xxxx/xx/xx",
-    redcapData[[v]] == "xx-xx-xxxx" ~ "xxxx/xx/xx",
-    
-    # Date nel formato gg/mm/aaaa → converti in aaaa/mm/gg
-    grepl("^\\d{2}/\\d{2}/\\d{4}$", redcapData[[v]]) ~
-      format(as.Date(redcapData[[v]], "%d/%m/%Y"), "%Y/%m/%d"),
-    
-    # Lascia tutto il resto invariato
-    TRUE ~ redcapData[[v]]
+  x <- as.character(x)
+  out <- x
+  
+  # Codici speciali
+  out[x == "222222"] <- "2222/22/22"
+  out[x == "333333"] <- "3333/33/33"
+  out[x == "999999"] <- "xxxx/xx/xx"
+  out[x == "xx-xx-xxxx"] <- "xxxx/xx/xx"
+  
+  # Date valide gg/mm/aaaa
+  valid_idx <- grepl("^\\d{2}/\\d{2}/\\d{4}$", x)
+  
+  out[valid_idx] <- format(
+    as.Date(x[valid_idx], "%d/%m/%Y"),
+    "%Y/%m/%d"
   )
   
-  redcapData[[v]] <- as.character(redcapData[[v]])
+  # Tutto il resto → xxxx/xx/xx
+  out[!valid_idx & 
+        !x %in% c("222222", "333333", "999999", "xx-xx-xxxx")] <- "xxxx/xx/xx"
+  
+  return(out)
+}
+
+for (v in date_vars) {
+  redcapData[[v]] <- clean_date(redcapData[[v]])
 }
 
 

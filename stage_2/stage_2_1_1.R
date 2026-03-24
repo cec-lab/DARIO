@@ -38,7 +38,8 @@ cedap_linked_vars <- c(
   "nativivi",
   "natimor",
   "METODO",
-  "TABACCO"
+  "TABACCO",
+  "PROG_PAZ_NEO"
 ) 
 
 cedapData <- read_csv2(paste0(cedapDir, "/", cedapFileName), locale = locale(encoding = "WINDOWS-1252"))
