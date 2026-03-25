@@ -15,18 +15,20 @@ library(rlang)
 # ===============================
 # DATA IMPORT
 # ===============================
+baseDir= getwd()
+source(paste0(baseDir,"/config.R"))
 
 root <- "/Users/luca/Library/CloudStorage/GoogleDrive-cmmlcu@unife.it/Drive condivisi/IMER/documenti/missing_outliers_DMS"
 cat("Root directory:", root, "\n")
 list.files(root)
 
-eurocatData <- read_delim("~/Google Drive/Drive condivisi/IMER/documenti/missing_outliers_DMS/eurocatData_merged.csv", 
-                          delim = ";", escape_double = FALSE, trim_ws = TRUE)
+# eurocatData <- read_delim("~/Google Drive/Drive condivisi/IMER/documenti/missing_outliers_DMS/eurocatData_merged.csv", 
+#                           delim = ";", escape_double = FALSE, trim_ws = TRUE)
+# 
+# DMS_clean   <- read_delim(paste0(root, "/DMS_export_2010_2023.csv"),
+#                           delim = ";", escape_double = FALSE, trim_ws = TRUE)
 
-DMS_clean   <- read_delim(paste0(root, "/DMS_export_2010_2023.csv"),
-                          delim = ";", escape_double = FALSE, trim_ws = TRUE)
-
-eurocatData_test_Luca <- read_csv2("~/Google Drive/Drive condivisi/IMER/database/qc/DARIO/indir/eurocatData_test_Luca2.csv",  col_types = cols(
+eurocatData_test_Luca <- read_csv2(paste0(exportDir, "/eurocatData.csv"),  col_types = cols(
   birth_date = col_character(),
   death_date = col_character(),
   datemo     = col_character()))
@@ -39,7 +41,7 @@ eurocatData_test_Luca <- eurocatData_test_Luca %>%
 # ============================================================
 
 CODING_QC_Eurocat <- read_csv2(
-  "~/Google Drive/Drive condivisi/IMER/documenti/missing_outliers_DMS/CODING_QC_Eurocat.csv",
+ paste0(baseDir, "/tables/CODING_QC_Eurocat.csv"),
   locale = locale(encoding = "UTF-8")
 )
 
@@ -61,13 +63,8 @@ vars_numeric <- c(
   "premal4","premal5","premal6","premal7","premal8"
 )
 
-vars_numeric <- intersect(vars_numeric, names(DMS_clean))
+vars_numeric <- intersect(vars_numeric, names(eurocatData_test_Luca))
 
-DMS_clean <- DMS_clean %>%
-  mutate(across(
-    all_of(vars_numeric),
-    ~ suppressWarnings(as.numeric(as.character(.)))
-  ))
 
 # ============================================================
 # 3️⃣ FUNZIONE TRADUZIONE REGOLA IN ITALIANO
@@ -213,7 +210,7 @@ warnings_grouped <- warnings_df %>%
 # 8️⃣ CREAZIONE CARTELLA OUTPUT
 # ============================================================
 
-output_dir <- "~/Google Drive/Drive condivisi/IMER/database/qc/DARIO/outdir"
+output_dir <- exportDir
 
 
 # ============================================================

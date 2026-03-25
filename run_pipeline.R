@@ -74,6 +74,13 @@ print("STAGE 5 START")
 source(paste0(stage5Dir, "/merge.R"), echo = T)
 print("STAGE 5 END")
 
+# WARNINGS ----
+
+print("qc warnings DMS")
+print("STAGE 6 START")
+source(paste0(stage5Dir, "/validazione_regole_eurocat.R"), echo = T)
+print("STAGE 6 END")
+
 # LOG FILE CLOSE ----
 
 # sink()
