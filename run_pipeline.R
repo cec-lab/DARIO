@@ -66,18 +66,20 @@ print("STAGE 4 START")
 source(paste0(stage4Dir, "/complete.R"), echo = T)
 print("STAGE 4 END")
 
-# WARNINGS ----
-
-print("qc warnings DMS")
-print("STAGE 5 START")
-source(paste0(baseDir, "/validazione_regole_eurocat.R"), echo = T)
-print("STAGE 5 END")
 
 # MERGE ----
 
 print("Merge EDC SDO")
-print("STAGE 6 START")
+print("STAGE 5 START")
 source(paste0(stage5Dir, "/merge.R"), echo = T)
+print("STAGE 5 END")
+
+
+# WARNINGS ----
+
+print("qc warnings DMS")
+print("STAGE 6 START")
+source(paste0(baseDir, "/validazione_regole_eurocat.R"), echo = T)
 print("STAGE 6 END")
 
 

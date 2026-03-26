@@ -18,16 +18,6 @@ library(rlang)
 baseDir= getwd()
 source(paste0(baseDir,"/config.R"))
 
-root <- "/Users/luca/Library/CloudStorage/GoogleDrive-cmmlcu@unife.it/Drive condivisi/IMER/documenti/missing_outliers_DMS"
-cat("Root directory:", root, "\n")
-list.files(root)
-
-# eurocatData <- read_delim("~/Google Drive/Drive condivisi/IMER/documenti/missing_outliers_DMS/eurocatData_merged.csv", 
-#                           delim = ";", escape_double = FALSE, trim_ws = TRUE)
-# 
-# DMS_clean   <- read_delim(paste0(root, "/DMS_export_2010_2023.csv"),
-#                           delim = ";", escape_double = FALSE, trim_ws = TRUE)
-
 eurocatData_test_Luca <- read_csv2(paste0(exportDir, "/eurocatData.csv"),  col_types = cols(
   birth_date = col_character(),
   death_date = col_character(),
@@ -37,20 +27,10 @@ eurocatData_test_Luca <- eurocatData_test_Luca %>%
   rename(residmo = resmo)
 
 # ============================================================
-# 1️⃣ CARICAMENTO REGOLE
+# 1️⃣ CARICAMENTO WARNINGS
 # ============================================================
 
-CODING_QC_Eurocat <- read_csv2(
- paste0(baseDir, "/tables/CODING_QC_Eurocat.csv"),
-  locale = locale(encoding = "UTF-8")
-)
-
-CODING_QC_Eurocat <- CODING_QC_Eurocat %>% tibble::as_tibble()
-
-# Se non esiste TestoWarning lo creiamo
-if(!"TestoWarning" %in% names(CODING_QC_Eurocat)){
-  CODING_QC_Eurocat$TestoWarning <- CODING_QC_Eurocat$REGOLA
-}
+source(paste0(baseDir,"/tables/regole_qc.R"))
 
 # ============================================================
 # 2️⃣ CONVERSIONE AUTOMATICA FACTOR NUMERICI
@@ -64,7 +44,8 @@ vars_numeric <- c(
 )
 
 vars_numeric <- intersect(vars_numeric, names(eurocatData_test_Luca))
-
+eurocatData_test_Luca <- eurocatData_test_Luca %>%
+  mutate(across(all_of(vars_numeric), as.numeric))
 
 # ============================================================
 # 3️⃣ FUNZIONE TRADUZIONE REGOLA IN ITALIANO
@@ -139,18 +120,21 @@ traduci_regola <- function(regola){
 # 4️⃣ FUNZIONE CHE APPLICA UNA REGOLA
 # ============================================================
 
-valuta_regola <- function(regola, messaggio, dataset){
+valuta_regola <- function(regola, dataset){
   
   if(is.na(regola) || regola == "") return(NULL)
-  
-  regola_trad <- traduci_regola(regola)
   
   viol <- tryCatch({
     dataset %>%
       filter(!!parse_expr(regola)) %>%
-      select(data_source, numloc)
+      mutate(
+        warning = regola,
+        regola_tradotta = traduci_regola(regola)
+      ) %>%
+      select(data_source, numloc, warning, regola_tradotta)
+    
   }, error = function(e){
-    message("Errore nella regola:")
+    message("❌ ERRORE REGOLA:")
     message(regola)
     message("Motivo: ", e$message)
     return(NULL)
@@ -158,25 +142,41 @@ valuta_regola <- function(regola, messaggio, dataset){
   
   if(is.null(viol) || nrow(viol) == 0) return(NULL)
   
-  viol %>%
-    mutate(
-      warning = messaggio,
-      regola_tradotta = regola_trad
-    ) %>%
-    select(data_source, numloc, warning, regola_tradotta)
+  return(viol)
 }
 # ============================================================
 # 5️⃣ APPLICAZIONE DI TUTTE LE REGOLE (SCEGLIERE IL DATASET)
 # ============================================================
+# ============================================================
+# DEBUG VALIDAZIONE REGOLE
+# ============================================================
 
-warnings_list <- purrr::map2(
-  CODING_QC_Eurocat$REGOLA,
-  CODING_QC_Eurocat$TestoWarning,
-  ~valuta_regola(.x, .y, eurocatData_test_Luca)                       #CAMBIARE DATASET
+check_regole <- function(regole){
+  
+  for(i in seq_along(regole)){
+    
+    res <- try(parse_expr(regole[i]), silent = TRUE)
+    
+    if(inherits(res, "try-error")){
+      cat("\n❌ ERRORE REGOLA:", i, "\n")
+      cat(regole[i], "\n")
+    }
+  }
+}
+
+check_regole(regole)
+
+warnings_list <- purrr::map(
+  regole,
+  ~valuta_regola(.x, eurocatData_test_Luca)
 )
 
 
 warnings_df <- bind_rows(warnings_list)
+
+if(nrow(warnings_df) == 0){
+  cat("✔ Nessun warning trovato\n")
+} 
 
 # ============================================================
 # 6️⃣ FREQUENZE WARNING (ORDINE DECRESCENTE)
