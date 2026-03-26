@@ -5,6 +5,8 @@
 baseDir=getwd()
 source(paste0(baseDir,"/config.R"), echo = T)
 source(paste0(baseDir,"/functions.R"), echo = T)
+source(paste0(stage0Dir, "/selected_vars.R"))
+
 
 # SET WORKING DIRECTORY ----
 
@@ -24,7 +26,7 @@ birthCenters <- read_csv2(paste0(tablesDir,"/centri_imer.csv"))
 
 # FILTER BY COHORT YEAR ----
 
-redcapData$birth_date <- suppressWarnings(dmy(redcapData$birth_date))
+redcapData$birth_date <- suppressWarnings(ymd(redcapData$birth_date))
 redcapData$cohort <- year(redcapData$birth_date)
 redcapData <- redcapData |> filter(cohort==Year)
 
@@ -58,4 +60,9 @@ allDagType <- redcapData |> group_by(redcap_data_access_group, type) |> count() 
 
 redcapData |> filter(type==4) |> count()
 
+
+redcapData <- redcapData |> select(any_of(selectedVarsStage_0_2))
+redcapData$sdo_number <- as.character(redcapData$sdo_number)
+
+write_csv2(redcapData, file = paste0(exportDir, "/redcapData_stage_0_1.csv"))
 

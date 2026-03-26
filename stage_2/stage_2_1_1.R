@@ -23,24 +23,6 @@ rm(redcapData_stege_1_1_revised)
 
 # IMPORT CEDAP DATA ----
 
-cedap_linked_vars <- c(
-  "PROG_PAZ",
-  "COD_STAB",
-  "AMNIOCEN",
-  "VILLICOR",
-  "ECOGRAF",
-  "PESO",
-  "CFR_CRAN",
-  "PESO_M",
-  "ALTEZZA_M",
-  "aborti",
-  "ivg",         
-  "nativivi",
-  "natimor",
-  "METODO",
-  "TABACCO",
-  "PROG_PAZ_NEO"
-) 
 
 cedapData <- read_csv2(paste0(cedapDir, "/", cedapFileName), locale = locale(encoding = "WINDOWS-1252"))
 cedapData <- cedapData[, cedap_linked_vars]
@@ -164,10 +146,8 @@ redcapData$illdur1 <- ifelse(!is.na(redcapData$icd10illdur1), redcapData$icd10il
 
 redcapData$illdur2 <- ifelse(!is.na(redcapData$icd10illdur2), redcapData$icd10illdur2, redcapData$illdur2)
 
-redcapData$birth_date <- ymd(redcapData$birth_date)
-redcapData$datemo <- ymd(redcapData$datemo)
-redcapData$death_date <- ymd(redcapData$death_date)
-
+redcapData$datemo <- suppressWarnings(ymd(redcapData$datemo))
+redcapData$death_date <- suppressWarnings(ymd(redcapData$death_date))
 redcapData$birth_date <- str_replace_all(redcapData$birth_date, "-", "/")
 redcapData$data_source <- "EDC"
 

@@ -8,7 +8,7 @@ source(paste0(redcapDir, "/preprocess_edc.R"), echo = T)
 
 
 # LINKAGE KEY ----
-redcapData <- read_csv2(paste0(exportDir, "/redcapData_stage_0_2.csv"))
+redcapData <- read_csv2(paste0(exportDir, "/redcapData_stage_0_1.csv"))
 cedap <- read_csv2(paste0(cedapDir, "/cedap_plus_2023.csv"))
 
 # REDCAP SDO NUMBER FORMATTING ----

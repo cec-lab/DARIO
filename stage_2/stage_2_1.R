@@ -28,7 +28,12 @@ centriIMERlookup <- setNames(centriImer$Centro_IMER, centriImer$Codice)
 cedapData <- read_csv2(paste0(cedapDir, "/", cedapFileName))
 cedapData <- cedapData[, cedap_linked_vars]
 
-cedapDataLinked <- data.frame(matrix(NA, nrow = dim(redcapData)[1], ncol = dim(cedapData)[2]))
+cedapDataLinked <- data.frame(
+  matrix(NA, 
+         nrow = nrow(redcapData), 
+         ncol = length(cedap_linked_vars))
+)
+
 colnames(cedapDataLinked) <- cedap_linked_vars
 cedapDataLinked$metodi_PMA <- 0
 
