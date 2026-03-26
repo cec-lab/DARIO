@@ -165,6 +165,9 @@ redcapData$illdur1 <- ifelse(!is.na(redcapData$icd10illdur1), redcapData$icd10il
 redcapData$illdur2 <- ifelse(!is.na(redcapData$icd10illdur2), redcapData$icd10illdur2, redcapData$illdur2)
 
 redcapData$birth_date <- ymd(redcapData$birth_date)
+redcapData$datemo <- ymd(redcapData$datemo)
+redcapData$death_date <- ymd(redcapData$death_date)
+
 redcapData$birth_date <- str_replace_all(redcapData$birth_date, "-", "/")
 redcapData$data_source <- "EDC"
 
