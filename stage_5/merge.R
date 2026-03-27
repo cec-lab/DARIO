@@ -79,11 +79,11 @@ redcapData$data_source <- "EDC"
 # sdoMergeData$birth_date <- str_replace_all(sdoMergeData$birth_date, "-", "/")
 # sdoMergeData$death_date <- str_replace_all(sdoMergeData$death_date, "-", "/")
 # sdoMergeData$datemo <- str_replace_all(sdoMergeData$datemo, "-", "/")
-sdoMergeData$pm_notes <- NA
-sdoMergeData$sp_illbef1 <- NA
-sdoMergeData$sp_illbef2 <- NA
-sdoMergeData$sp_illdur1 <- NA
-sdoMergeData$sp_illdur2 <- NA
+# sdoMergeData$pm_notes <- NA
+# sdoMergeData$sp_illbef1 <- NA
+# sdoMergeData$sp_illbef2 <- NA
+# sdoMergeData$sp_illdur1 <- NA
+# sdoMergeData$sp_illdur2 <- NA
 #sdoMergeData$birthCenter <- ""
 sdoMergeData$amniocentesis <- 9
 sdoMergeData$chorvilsam <- 9
