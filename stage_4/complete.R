@@ -1,6 +1,8 @@
 #Clear existing data and graphics
-rm(list=ls())
-graphics.off()
+if(!exists("redcapData")){
+  rm(list=ls())
+  graphics.off()
+}
 
 # SOURCE CONFIGURATION FILE ----
 

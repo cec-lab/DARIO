@@ -1,18 +1,19 @@
-#Clear existing data and graphics
+# Clear existing data and graphics
 rm(list=ls())
 graphics.off()
 
 # SOURCE CONFIGURATION FILE ----
 
-baseDir=getwd()
-source(paste0(baseDir,"/config.R"), echo = T)
-source(paste0(baseDir,"/functions.R"), echo = T)
 
-# SET WORKING DIRECTORY ----
+baseDir = getwd()
+source(paste0(baseDir,"/config.R"), echo = TRUE)
+source(paste0(baseDir,"/functions.R"), echo = TRUE)
 
 setwd(baseDir)
 
+
 # DATA LOAD ----
+
 
 redcapData <- read_csv2(paste0(exportDir, "/redcapData_stage_4_1.csv"))
 
@@ -21,7 +22,7 @@ sdoData <- read_csv2(
   col_types = cols(
     birth_date = col_character(),
     death_date = col_character(),
-    datemo = col_character()
+    datemo     = col_character()
   )
 )
 
@@ -30,98 +31,179 @@ sdoData <- sdoData |> rename(prog_paz_neo = prog_paz)
 sdoData$record_id <- as.character(sdoData$record_id)
 
 
-
 # REMOVE SDO ALREADY RECORDED IN REDCAP ----
+
+common_ids <- intersect(sdoData$prog_paz_neo, redcapData$prog_paz_neo)
+
+# subset duplicati
+redcap_common <- redcapData[redcapData$prog_paz_neo %in% common_ids, ]
+sdo_common    <- sdoData[sdoData$prog_paz_neo %in% common_ids, ]
+
+redcap_common <- redcap_common %>%
+  mutate(across(everything(), as.character))
+
+redcapData <- redcapData %>%
+  mutate(across(everything(), as.character))
+
+
+# funzione: Se stesso prog_paz_neo:guarda la cella in REDCap <- se è vuota (NA o “”) e in SDO c’è un valore <- prende quel valore da SDO e lo mette in REDCap
+# NON tocca le celle già compilate in REDCap - lavora solo sui “buchi” - riga per riga (stesso paziente)
+
+
+redcap_common <- fill_from_sdo(redcap_common, sdo_common)
+
+# rimetti dentro
+redcapData[redcapData$prog_paz_neo %in% common_ids, ] <- redcap_common
 
 removeSDO <- which(sdoData$prog_paz_neo %in% redcapData$prog_paz_neo)
 
-sdoRemovedData <- sdoData[removeSDO,]
+sdoRemovedData <- sdoData[sdoData$prog_paz_neo %in% redcapData$prog_paz_neo, ]
+sdoMergeData   <- sdoData[!sdoData$prog_paz_neo %in% redcapData$prog_paz_neo, ]
 
-sdoMergeData <- sdoData[-removeSDO,]
+# STANDARDIZZAZIONE TIPI ----
 
-# HARMONIZE redCap - SDO DATASET ----
+
+vars_numeric <- c(
+  "sex","type","survival",
+  "nbrbaby","nbrmalf","totpreg",
+  "weight","gestlength",
+  "agemo","bmi",
+  "whendisc","agedisc","condisc",
+  "firstpre","pm","presyn",
+  "premal1","premal2","premal3","premal4",
+  "premal5","premal6","premal7","premal8",
+  "cov_severity","consang","sibanom",
+  "moanom","faanom","matedu","socm",
+  "amniocentesis","chorvilsam","ultrason",
+  "pre_sa","pre_topfa","pre_live","pre_still",
+  "start_cov"
+)
+
+standardize_types <- function(df, vars_numeric){
+  
+  vars_numeric <- intersect(vars_numeric, names(df))
+  
+  # separo numeric e non numeric
+  vars_char <- setdiff(names(df), vars_numeric)
+  
+  df <- df %>%
+    mutate(across(all_of(vars_char), as.character)) %>%
+    mutate(across(all_of(vars_numeric), ~ suppressWarnings(as.numeric(.))))
+  
+  return(df)
+}
+
+redcapData <- standardize_types(redcapData, vars_numeric)
+sdoMergeData <- standardize_types(sdoMergeData, vars_numeric)
+
+
+# TRANSCODIFICA SDO (RIUSO COMPLETE.R) ----
+
+
+tmp_env <- new.env()
+
+tmp_env$redcapData <- sdoMergeData
+
+source(
+  paste0(baseDir,"/stage_4/complete.R"), #in ambiente separato altrimenti rm list cancella environment
+  local = tmp_env
+)
+
+sdoMergeData <- tmp_env$redcapData
+
+# REDCAP (RIPASSA IN COMPLETE) --------
+env_redcap <- new.env()
+env_redcap$redcapData <- redcapData
+
+source(
+  paste0(baseDir,"/stage_4/complete.R"),
+  local = env_redcap
+)
+
+redcapData <- env_redcap$redcapData
+
+
+# HARMONIZE DATASET ----
+
+
+# -------- DATE CLEANING --------
 
 date_vars <- c("birth_date", "death_date", "datemo")
 
 clean_date <- function(x){
   
   x <- as.character(x)
-  out <- x
+  out <- rep("xxxx/xx/xx", length(x))
   
   # Codici speciali
-  out[x == "222222"] <- "2222/22/22"
-  out[x == "333333"] <- "3333/33/33"
-  out[x == "999999"] <- "xxxx/xx/xx"
+  out[x == "222222"]     <- "2222/22/22"
+  out[x == "333333"]     <- "3333/33/33"
+  out[x == "999999"]     <- "xxxx/xx/xx"
   out[x == "xx-xx-xxxx"] <- "xxxx/xx/xx"
+  out[x == "xxxx/xx/xx"] <- "xxxx/xx/xx"
   
-  # Date valide gg/mm/aaaa
-  valid_idx <- grepl("^\\d{2}/\\d{2}/\\d{4}$", x)
+  # yyyy-mm-dd
+  idx_iso <- grepl("^\\d{4}-\\d{2}-\\d{2}$", x)
+  out[idx_iso] <- format(as.Date(x[idx_iso], "%Y-%m-%d"), "%Y/%m/%d")
   
-  out[valid_idx] <- format(
-    as.Date(x[valid_idx], "%d/%m/%Y"),
-    "%Y/%m/%d"
-  )
+  # dd/mm/yyyy
+  idx_full <- grepl("^\\d{2}/\\d{2}/\\d{4}$", x)
+  out[idx_full] <- format(as.Date(x[idx_full], "%d/%m/%Y"), "%Y/%m/%d")
   
-  # Tutto il resto → xxxx/xx/xx
-  out[!valid_idx & 
-        !x %in% c("222222", "333333", "999999", "xx-xx-xxxx")] <- "xxxx/xx/xx"
+  # dd/mm/yy
+  idx_short <- grepl("^\\d{2}/\\d{2}/\\d{2}$", x)
+  if(any(idx_short)){
+    tmp <- as.Date(x[idx_short], "%d/%m/%y")
+    out[idx_short] <- format(tmp, "%Y/%m/%d")
+  }
   
   return(out)
 }
 
+# Applico a ENTRAMBI
 for (v in date_vars) {
-  redcapData[[v]] <- clean_date(redcapData[[v]])
+  redcapData[[v]]    <- clean_date(redcapData[[v]])
+  sdoMergeData[[v]]  <- clean_date(sdoMergeData[[v]])
 }
 
+# -------- METADATI --------
 
 redcapData$data_source <- "EDC"
 
-# sdoMergeData$birth_date <- str_replace_all(sdoMergeData$birth_date, "-", "/")
-# sdoMergeData$death_date <- str_replace_all(sdoMergeData$death_date, "-", "/")
-# sdoMergeData$datemo <- str_replace_all(sdoMergeData$datemo, "-", "/")
-# sdoMergeData$pm_notes <- NA
-# sdoMergeData$sp_illbef1 <- NA
-# sdoMergeData$sp_illbef2 <- NA
-# sdoMergeData$sp_illdur1 <- NA
-# sdoMergeData$sp_illdur2 <- NA
-#sdoMergeData$birthCenter <- ""
 sdoMergeData$amniocentesis <- 9
-sdoMergeData$chorvilsam <- 9
-sdoMergeData$ultrason <- 9
-sdoMergeData$data_source <- "SDO"
+sdoMergeData$chorvilsam    <- 9
+sdoMergeData$ultrason      <- 9
+sdoMergeData$data_source   <- "SDO"
+
+# -------- SPLIT CAMPI --------
+
 sdoMergeData$gestlength <- str_split_i(sdoMergeData$gestlength, "\\|", 1)
-sdoMergeData$weight <- str_split_i(sdoMergeData$weight, "\\|", 1)
+sdoMergeData$weight     <- str_split_i(sdoMergeData$weight, "\\|", 1)
+
+# -------- ALLINEAMENTO COLONNE --------
 
 sdoMergeData <- sdoMergeData[, eurocat_vars_list]
 
-ordered_cols <- c(eurocat_vars_list)
-sdoMergeData <- sdoMergeData[, ordered_cols]
+
+# MERGE ----
+
 
 eurocatData <- rbind(redcapData, sdoMergeData)
 
-# MODIFICHE AD-HOC
-# eurocatData$premal1[redcapData$premal1 == 3] <- 1
-# eurocatData$premal2[redcapData$premal2 == 3] <- 1
-# eurocatData$premal3[redcapData$premal3 == 3] <- 1
-# eurocatData$premal4[redcapData$premal4 == 3] <- 1
-# eurocatData$premal5[redcapData$premal5 == 3] <- 1
-# eurocatData$premal6[redcapData$premal6 == 3] <- 1
-# eurocatData$premal7[redcapData$premal7 == 3] <- 1
-# eurocatData$premal8[redcapData$premal8 == 3] <- 1
-# 
-# eurocatData$presyn[redcapData$presyn == 3] <- 1
-# 
-# eurocatData$type[eurocatData$survival == 1] <- 1
 
-## NUMLOC generation ----
+# NUMLOC GENERATION ----
 
-postfix=1:dim(eurocatData)[1]
-prefix=rep(Year, dim(eurocatData)[1])
-lenPostfix=4 #max(str_length(postfix))
-postfix_zero_padded=str_pad(postfix, width=lenPostfix, side="left", pad=0)
-numloc=str_c(prefix, postfix_zero_padded)
-eurocatData$numloc=numloc
 
-# OUT ----
+postfix <- 1:nrow(eurocatData)
+prefix  <- rep(Year, nrow(eurocatData))
+
+postfix_zero_padded <- str_pad(postfix, width = 4, side = "left", pad = 0)
+
+eurocatData$numloc <- str_c(prefix, postfix_zero_padded)
+
+
+# OUTPUT ----
+
 
 write_csv2(eurocatData, file = paste0(exportDir, "/eurocatData.csv"))
+
