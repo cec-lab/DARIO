@@ -24,6 +24,10 @@ redcapData$weight[is.na(redcapData$weight)] <- 9999
 redcapData$gestlength[is.na(redcapData$gestlength)] <- 99
 
 # DATE (formato EUROCAT yyyy/mm/xx)
+redcapData$birth_date <- as.character(redcapData$birth_date)
+redcapData$datemo <- as.character(redcapData$datemo)
+redcapData$death_date <- as.character(redcapData$death_date)
+
 redcapData$datemo[is.na(redcapData$datemo)] <- "xxxx/xx/xx"
 redcapData$death_date[is.na(redcapData$death_date)] <- "xxxx/xx/xx"
 

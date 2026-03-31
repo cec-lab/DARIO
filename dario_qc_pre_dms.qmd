@@ -1,0 +1,1747 @@
+---
+title: "Controllo di qualità dei dati (DARIO) - Coorte 2023"
+title-block-banner: true
+date: today
+format:
+    pdf:
+      toc: true
+      toc-depth: 4
+      number-sections: true
+      highlight-style: github
+      fontsize: "10"
+      geometry:
+        - top=20mm
+        - bottom=20mm
+        - left=20mm
+        - right=20mm
+        - heightrounded
+editor: visual
+---
+
+\pagebreak
+
+# Controllo di qualità dei dati (DARIO)
+
+## Configuration
+
+```{r}
+#| warning: false
+#| echo: false
+
+#rm(list=ls())
+
+cat("Starting configuration\n")
+
+# packages
+
+baseDir = getwd()
+source(paste0(baseDir,"/config.R"), echo = TRUE)
+source(paste0(baseDir,"/codice/rbiostatfunbox/funbox.R"), echo = TRUE)
+
+library(readxl)
+library(readr)
+library(dplyr)
+library(knitr)
+library(janitor)
+library(kableExtra)
+library(scales)
+library(ggplot2)
+library(survminer)
+
+# path
+
+wd = baseDir
+setwd(wd)
+indir = exportDir
+outdir <- paste0(exportDir, "/outdir")
+
+# funtions
+
+# ===============================
+# FUNZIONE CONTEGGIO MISSING
+
+count_missing_types <- function(x){
+  
+  x_chr <- as.character(x)
+  
+  tibble(
+    `9`           = sum(x_chr == "9", na.rm = TRUE),
+    `99`          = sum(x_chr == "99", na.rm = TRUE),
+    `999`         = sum(x_chr == "999", na.rm = TRUE),
+    `9999`        = sum(x_chr == "9999", na.rm = TRUE),
+    `-`           = sum(x_chr == "-", na.rm = TRUE),
+    `xxxx/xx/xx`  = sum(x_chr == "xxxx/xx/xx", na.rm = TRUE),
+    `2222/22/22`  = sum(x_chr == "2222/22/22", na.rm = TRUE),
+    `222222`  = sum(x_chr == "222222", na.rm = TRUE),
+    `NA`          = sum(is.na(x))
+  )
+}
+
+# ===============================
+# COSTRUZIONE TABELLA MISSING
+
+build_missing_table <- function(data){
+  
+  res <- lapply(names(data), function(v){
+    
+    out <- count_missing_types(data[[v]])
+    out$Variabile <- v
+    out
+  })
+  
+  bind_rows(res) %>%
+    select(Variabile, everything())
+}
+
+# ===============================
+# SUMMARY NUMERICHE
+
+summary_numeric <- function(data, var){
+  
+  x <- data[[var]]
+  x_clean <- x[!(x %in% sentinel_num) & !is.na(x)]
+  
+  if(length(x_clean) == 0){
+    return(
+      tibble(
+        Stat  = c("Media","Mediana","Moda","SD","IQR","Missing"),
+        Value = c(NA, NA, NA, NA, NA, count_missing(x))
+      )
+    )
+  }
+  
+  tibble(
+    Stat = c("Media","Mediana","Moda","SD","IQR","Missing"),
+    Value = c(
+      round(mean(x_clean, na.rm = TRUE), 2),
+      round(median(x_clean, na.rm = TRUE), 2),
+      mode_stat(x_clean),
+      round(sd(x_clean, na.rm = TRUE), 2),
+      round(IQR(x_clean, na.rm = TRUE), 2),
+      count_missing(x)
+    )
+  )
+}
+
+# ===============================
+# SUMMARY CATEGORICHE
+
+summary_categorical <- function(data, var){
+  x <- data[[var]]
+  
+  tab <- table(x, useNA = "ifany")
+  df  <- as.data.frame(tab)
+
+}
+
+# ===============================
+# SENTINEL VALUES
+
+sentinel_num <- c(9, 99, 999, 9999, 99999)
+sentinel_fac <- c(
+  "9","99","999","9999","99999",
+  "0",""," ","NA","N/A","XXXX/XX/XX","-"
+)
+
+# ===============================
+# count_missing
+
+count_missing <- function(x){
+  if(is.numeric(x)){
+    sum(is.na(x) | x %in% sentinel_num)
+  } else {
+    sum(is.na(x) | as.character(x) %in% sentinel_fac)
+  }
+}
+
+
+# ===============================
+# mode_stat
+
+mode_stat <- function(x){
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+cat("DONE\n")
+```
+
+## Data
+
+```{r}
+#| warning: false
+#| echo: false
+
+cat("Loading data\n")
+
+eurocatData_merged_last_pre_DMS <- read.csv2(
+  paste0(exportDir, "/eurocatData.csv"),
+  stringsAsFactors = FALSE
+)
+
+# FIX UTF-8 GLOBALE 
+# eurocatData_merged_last_pre_DMS[] <- lapply(
+#   eurocatData_merged_last_pre_DMS,
+#   function(x){
+#     if(is.character(x)){
+#       x <- iconv(x, from = "", to = "UTF-8", sub = "")
+#       x <- enc2utf8(x)
+#     }
+#     x
+#   }
+# )
+
+# remove first column (solo se davvero necessario)
+# eurocatData_merged_last_pre_DMS <- 
+#   eurocatData_merged_last_pre_DMS[, -1]
+
+cat("DONE\n")
+
+cat(paste0("Number of record: ", 
+           nrow(eurocatData_merged_last_pre_DMS), "\n"))
+
+cat(paste0("Number of vars: ", 
+           ncol(eurocatData_merged_last_pre_DMS), "\n"))
+
+# sanitize character variable
+
+cat("Cleaning\n")
+
+spCols <- grep("^sp_", colnames(eurocatData_merged_last_pre_DMS))
+spCols <- c(spCols, 18, 34, 112)
+
+for(spcol in spCols){
+  eurocatData_merged_last_pre_DMS[[spcol]] <- 
+    iconv(eurocatData_merged_last_pre_DMS[[spcol]],
+          from = "", to = "UTF-8", sub = "")
+  
+  eurocatData_merged_last_pre_DMS[[spcol]] <- 
+    gsub("[^[:alnum:][:space:]]", "", 
+         eurocatData_merged_last_pre_DMS[[spcol]])
+}
+
+eurocatData_merged_last_pre_DMS$cod_pres <- as.factor(str_replace_all(eurocatData_merged_last_pre_DMS$cod_pres, "\\|", ";"))
+
+eurocatData_merged_last_pre_DMS$pm_notes <- iconv(eurocatData_merged_last_pre_DMS$pm_notes, from = "", to = "UTF-8", sub = "")
+
+cat("DONE\n")
+
+# variable set for tabulation
+
+cat("Variables selection\n")
+
+noTab <- c("record_id", "birth_date", "centre", "numloc", "sdo_number", "datemo", "prog_paz_neo", "cedap_linked", "sp_twin", "death_date", "mocitizenship", "resmo", "extra_er_resmo", "sp_karyo", "sp_gentest", "pm_notes", "syndrome", "sp_syndrome", "malfo1", "sp_malfo1", "malfo2", "sp_malfo2", "malfo3", "sp_malfo3", "malfo4", "sp_malfo4", "malfo5", "sp_malfo5", "malfo6", "sp_malfo6", "malfo7", "sp_malfo7", "malfo8", "sp_malfo8", "illbef1", "sp_illbef1", "illbef2", "sp_illbef2", "illdur1", "sp_illdur1", "illdur2", "sp_illdur2", "drugs1", "sp_drugs", "drugs2", "sp_drugs_2", "drugs3", "sp_drugs_3", "drugs4", "sp_drugs_4", "drugs5", "sp_drugs_5", "genrem", "omim", "orpha", "agefa", "occupmo", "sp_sibanom", "sp_moanom", "sp_faanom")
+
+toTab <- setdiff(colnames(eurocatData_merged_last_pre_DMS), noTab)
+
+tabSet<-eurocatData_merged_last_pre_DMS |> select(toTab)
+
+cat("DONE\n")
+
+```
+
+## Analysis
+
+### Linkage
+
+```{r}
+#| label: Linkage
+#| echo: false
+#| warning: false
+#| results: asis
+
+eurocatData_merged_last_pre_DMS %>%
+  mutate(
+    cedap_linked_binary = ifelse(cedap_linked == 0, "No", "Yes")
+  ) %>%
+  count(cedap_linked_binary, name = "n") %>%
+  filter(n > 1) %>%
+  knitr::kable(col.names = c("Linked to CedAP", "n")) %>%
+  row_spec(row = 0, background = 'lightgray') %>%
+  column_spec(1, width = "10cm") %>%
+  kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+
+cat("\n\n\\newpage\n")
+```
+
+### Missings table
+
+```{r}
+#| echo: false
+#| warning: false
+#| results: asis
+
+nm<-nmiss(eurocatData_merged_last_pre_DMS)[,3:6]
+nm$percentMissing <- round(nm$percentMissing, 2)
+knitr::kable(nm)
+cat("\n\n\\newpage\n")
+
+write.csv2(
+  nm,
+  file = file.path(outdir, "missings.csv")
+)
+
+```
+
+### Missings table with EUROCAT codes
+
+```{r}
+#| echo: false
+#| warning: false
+#| results: asis
+
+missing_eurocat <- build_missing_table(eurocatData_merged_last_pre_DMS)
+knitr::kable(missing_eurocat)
+cat("\n\n\\newpage\n")
+
+write.csv2(
+  missing_eurocat,
+  file = file.path(outdir, "missings_EUROCAT.csv")
+)
+
+```
+
+### Type of the variables
+
+```{r}
+#| echo: false
+#| warning: false
+#| fig-align: center
+#| results: asis
+
+vis_dat_wrapper(eurocatData_merged_last_pre_DMS)
+cat("\n\n\\newpage\n")
+```
+
+### Description of the variables
+
+```{r}
+#| label: Set variables type
+#| echo: false
+#| warning: false
+
+
+numeric_vars <- c(
+  "weight","gestlength","agemo","bmi","agedisc"
+)
+factor_vars <- setdiff(names(eurocatData_merged_last_pre_DMS), numeric_vars)
+
+eurocatData_merged_last_pre_DMS[factor_vars] <- lapply(eurocatData_merged_last_pre_DMS[factor_vars], as.factor)
+
+eurocatData_merged_last_pre_DMS[numeric_vars] <- lapply(eurocatData_merged_last_pre_DMS[numeric_vars], as.numeric)
+```
+
+#### record_id
+
+Table below reports only record_id with frequency greater than 1.
+
+```{r}
+#| label: Record ID
+#| echo: false
+#| warning: false
+#| results: asis
+
+eurocatData_merged_last_pre_DMS %>%
+  count(record_id, name = "n") %>%
+  filter(n > 1) %>%
+  knitr::kable() %>%
+  row_spec(row = 0, background = 'lightgray') %>%
+  column_spec(1, width = "10cm") %>%
+  kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+
+cat("\n\n\\newpage\n")
+```
+
+#### birth_date
+
+```{r}
+#| label: Birth date
+#| echo: false
+#| warning: false
+#| results: asis
+#| fig-align: "center"
+#| fig-width: 3
+#| fig-height: 2
+
+brp<-ggplot(eurocatData_merged_last_pre_DMS, aes(birth_date)) + geom_bar() + xlab("birth_date") + ylab("counts(n)") + theme_light() + theme(axis.text.x=element_blank())
+print(brp)
+
+tab<-as.data.frame(table(eurocatData_merged_last_pre_DMS$birth_date, eurocatData_merged_last_pre_DMS$cod_pres, useNA = "ifany"))
+colnames(tab)[1:2] <- c("birth_date", "cod_pres")
+
+tab %>% filter(Freq>1) %>%
+  knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "5cm") %>% column_spec(2, width = "5cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+cat("\n\n\\newpage\n")
+```
+
+#### numloc
+
+Table below reports only numloc with frequency greater than 1.
+
+```{r}
+#| label: numloc
+#| echo: false
+#| warning: false
+#| results: asis
+
+tab <- as.data.frame(table(eurocatData_merged_last_pre_DMS$numloc, useNA = "ifany"))
+colnames(tab)[1] <- "numloc"
+
+tab %>% filter(Freq>1) %>%
+  knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "10cm") %>% kable_styling(latex_options = c("repeat_header", "striped", linesep = ""), font_size = 10) %>%
+  print()
+cat("\n\n\\newpage\n")
+```
+
+#### sdo_number
+
+Table below reports only sdo_number with frequency greater than 1.
+
+```{r}
+#| label: sdo_number
+#| echo: false
+#| warning: false
+#| results: asis
+
+tab <- as.data.frame(table(eurocatData_merged_last_pre_DMS$sdo_number, useNA = "ifany"))
+colnames(tab)[1] <- "sdo_number"
+
+tab %>% filter(Freq>1) %>%
+  knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "10cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+cat("\n\n\\newpage\n")
+```
+
+#### datemo
+
+```{r}
+#| label: datemo
+#| echo: false
+#| warning: false
+#| results: asis
+#| fig-align: "center"
+#| fig-width: 3
+#| fig-height: 2
+
+
+brp<-ggplot(eurocatData_merged_last_pre_DMS, aes(datemo)) + geom_bar() + xlab("datemo") + ylab("counts(n)") + theme_light() + theme(axis.text.x=element_blank())
+print(brp)
+
+tab<-as.data.frame(table(eurocatData_merged_last_pre_DMS$datemo, eurocatData_merged_last_pre_DMS$cod_pres, useNA = "ifany"))
+colnames(tab)[1:2] <- c("datemo", "cod_pres")
+
+tab %>% filter(Freq>1) %>%
+  knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "5cm") %>% column_spec(2, width = "5cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+cat("\n\n\\newpage\n")
+```
+
+#### prog_paz_neo
+
+Table below reports only prog_paz_neo with frequency greater than 1.
+
+```{r}
+#| label: prog_paz_neo
+#| echo: false
+#| warning: false
+#| results: asis
+
+tab <- as.data.frame(table(eurocatData_merged_last_pre_DMS$prog_paz_neo, useNA = "ifany"))
+colnames(tab)[1] <- "prog_paz_neo"
+
+tab %>% filter(Freq>1) %>%
+  knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "10cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+cat("\n\n\\newpage\n")
+```
+
+#### death_date
+
+```{r}
+#| label: death_date
+#| echo: false
+#| warning: false
+#| results: asis
+#| fig-align: "center"
+#| fig-width: 3
+#| fig-height: 2
+
+brp<-ggplot(eurocatData_merged_last_pre_DMS, aes(death_date)) + geom_bar() + xlab("death_date") + ylab("counts(%)") + theme_light() + theme(axis.text.x=element_blank())
+print(brp)
+
+tab<-as.data.frame(table(eurocatData_merged_last_pre_DMS$death_date, useNA = "ifany"))
+colnames(tab)[1] <- c("death_date")
+
+tab %>% 
+  knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "10cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+cat("\n\n\\newpage\n")
+```
+
+#### mocitizenship
+
+```{r}
+#| label: mocitizenship
+#| echo: false
+#| warning: false
+#| results: asis
+
+
+tab <- as.data.frame(table(eurocatData_merged_last_pre_DMS$mocitizenship, useNA = "ifany"))
+colnames(tab)[1] <- "mocitizenship"
+
+tab %>% 
+  knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "10cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+cat("\n\n\\newpage\n")
+```
+
+#### resmo
+
+```{r}
+#| label: resmo
+#| echo: false
+#| warning: false
+#| results: asis
+
+
+tab <- as.data.frame(table(eurocatData_merged_last_pre_DMS$resmo, useNA = "ifany"))
+colnames(tab)[1] <- c("resmo")
+
+tab %>% 
+  knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "10cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+cat("\n\n\\newpage\n")
+```
+
+#### extra_er_resmo
+
+```{r}
+#| label: extra_er_resmo
+#| echo: false
+#| warning: false
+#| results: asis
+
+
+tab <- as.data.frame(table(eurocatData_merged_last_pre_DMS$extra_er_resmo, useNA = "ifany"))
+colnames(tab)[1] <- c("extra_er_resmo")
+
+tab %>% 
+  knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "10cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+cat("\n\n\\newpage\n")
+```
+
+#### cod_pres
+
+```{r}
+#| label: cod_pres
+#| echo: false
+#| warning: false
+#| results: asis
+#| fig-align: "center"
+#| fig-width: 3
+#| fig-height: 2
+
+brp<-ggplot(eurocatData_merged_last_pre_DMS, aes(cod_pres)) + geom_bar() + xlab("cod_pres") + ylab("counts(n)") + theme_light() + theme(axis.text.x=element_blank())
+print(brp)
+
+tab<-as.data.frame(table(eurocatData_merged_last_pre_DMS$cod_pres, useNA = "ifany"))
+colnames(tab)[1] <- c("cod_pres")
+
+tab %>%
+  knitr::kable(escape = F) %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "10cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+cat("\n\n\\newpage\n")
+```
+
+#### syndrome
+
+```{r}
+#| label: syndrome
+#| echo: false
+#| warning: false
+#| results: asis
+#| fig-align: "center"
+#| fig-width: 3
+#| fig-height: 2
+
+tab <- as.data.frame(table(eurocatData_merged_last_pre_DMS$syndrome, useNA = "ifany"))
+          if(nrow(tab)>0){
+          brp<-ggplot(eurocatData_merged_last_pre_DMS, aes(syndrome)) + geom_bar(aes(y = (..count..)/sum(..count..))) +  scale_y_continuous(labels=scales::percent) +  scale_x_discrete(labels = label_wrap(10)) + xlab("syndrome") + ylab("counts(%)") + theme_light() + theme(axis.text = element_blank())
+          print(brp)
+          cat("\n")
+          colnames(tab)[1] <- "syndrome"
+          print(
+            tab %>%
+            knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "10cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10)
+          )
+          }
+cat("\n\n\\newpage\n")
+```
+
+#### sp_syndrome
+
+```{r}
+#| label: sp_syndrome
+#| echo: false
+#| warning: false
+#| results: asis
+
+
+tab <- as.data.frame(table(eurocatData_merged_last_pre_DMS$sp_syndrome, useNA = "ifany"))
+colnames(tab)[1] <- "sp_syndrome"
+
+tab %>% 
+  knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "10cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+cat("\n\n\\newpage\n")
+```
+
+#### malfo
+
+```{r}
+#| label: malfo
+#| echo: false
+#| warning: false
+#| results: asis
+#| fig-align: "center"
+#| fig-width: 3
+#| fig-height: 2
+
+malfoSet <- eurocatData_merged_last_pre_DMS %>% select(c("malfo1", "malfo2", "malfo3", "malfo4", "malfo5", "malfo6", "malfo7", "malfo8"))
+
+for(var in colnames(malfoSet)){
+   
+  tab <- as.data.frame(table(malfoSet[[var]], useNA = "ifany"))
+          if(nrow(tab)>0){
+            cat("#####", var, "\n")
+            {
+              brp <- malfoSet %>% ggplot(aes(get(var))) + geom_bar(aes(y = (..count..)/sum(..count..))) + scale_y_continuous(labels=scales::percent) +  xlab(var) + ylab("counts(%)") + theme_light() + theme(axis.text.x=element_blank())
+          print(brp)
+          cat("\n")
+          }
+          colnames(tab)[1] <- var
+          print(
+            tab %>%
+            knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "10cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10)
+          )
+          }
+  cat("\n\\newpage\n")
+      }
+```
+
+#### sp_malfo
+
+```{r}
+#| label: sp_malfo
+#| echo: false
+#| warning: false
+#| results: asis
+
+
+malfoSet <- eurocatData_merged_last_pre_DMS %>% select(c("sp_malfo1", "sp_malfo2", "sp_malfo3", "sp_malfo4", "sp_malfo5", "sp_malfo6", "sp_malfo7", "sp_malfo8"))
+
+for(var in colnames(malfoSet)){
+  tab <- as.data.frame(table(malfoSet[[var]])) 
+  if(nrow(tab)>0){
+    cat("#####", var, "\n")
+    colnames(tab)[1] <- var
+          print(
+            tab %>%
+            knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "10cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10)
+          )
+  cat("\n\\newpage\n")
+  }
+}
+    
+```
+
+```{r}
+#| label: other_variables
+#| echo: false
+#| warning: false
+#| results: asis
+#| fig-align: "center"
+#| fig-width: 3
+#| fig-height: 2
+
+for(var in colnames(eurocatData_merged_last_pre_DMS[, toTab])){
+
+  cat("####", var, "\n")
+   
+   if(is.numeric(eurocatData_merged_last_pre_DMS[[var]])){
+     bxp<-ggplot(eurocatData_merged_last_pre_DMS, aes(y=get(var))) + geom_boxplot() + scale_x_discrete(labels = label_wrap(5)) + ylab(var) + theme_light()
+     print(bxp)
+     cat("\n")
+     tab <- summary_numeric(eurocatData_merged_last_pre_DMS, var)
+      if(nrow(tab)>0){
+        colnames(tab)[1] <- var
+        print(
+          tab %>%
+          knitr::kable(position = "left", full_width = T)  %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "10cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10)
+        )
+     }
+    } else {
+          tab <- as.data.frame(table(eurocatData_merged_last_pre_DMS[[var]], useNA = "ifany"))
+          if(nrow(tab)>0){
+          brp<-ggplot(eurocatData_merged_last_pre_DMS, aes(get(var))) + geom_bar(aes(y = (..count..)/sum(..count..))) +  scale_y_continuous(labels=scales::percent) +  scale_x_discrete(labels = label_wrap(10)) + xlab(var) + ylab("counts(%)") + theme_light()
+          print(brp)
+          cat("\n")
+          colnames(tab)[1] <- var
+          print(
+            tab %>%
+            knitr::kable(position = "left", full_width = T) %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "10cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10)
+          )
+          }
+      }
+    
+    cat("\n\\newpage\n")
+}
+```
+
+#### sp_twin
+
+```{r}
+#| label: sp_twin
+#| echo: false
+#| warning: false
+#| results: asis
+
+
+tab <- as.data.frame(table(eurocatData_merged_last_pre_DMS$sp_twin, useNA = "ifany"))
+colnames(tab)[1] <- "sp_twin"
+
+tab %>% 
+  knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "10cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+cat("\n\\newpage\n")
+```
+
+#### sp_karyo
+
+```{r}
+#| label: sp_karyo
+#| echo: false
+#| warning: false
+#| results: asis
+
+
+tab <- as.data.frame(table(eurocatData_merged_last_pre_DMS$sp_karyo, useNA = "ifany"))
+colnames(tab)[1] <- "sp_karyo"
+
+tab %>% 
+  knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "10cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+cat("\n\\newpage\n")
+```
+
+#### sp_gentest
+
+```{r}
+#| label: sp_gentest
+#| echo: false
+#| warning: false
+#| results: asis
+
+
+tab <- as.data.frame(table(eurocatData_merged_last_pre_DMS$sp_gentest, useNA = "ifany"))
+colnames(tab)[1] <- "sp_gentest"
+
+tab %>% 
+  knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "10cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+cat("\n\\newpage\n")
+```
+
+#### pm_notes
+
+```{r}
+#| label: pm_notes
+#| echo: false
+#| warning: false
+#| results: asis
+
+
+tab <- as.data.frame(table(eurocatData_merged_last_pre_DMS$pm_notes, useNA = "ifany"))
+colnames(tab)[1] <- "pm_notes"
+
+tab %>% 
+  knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "10cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+cat("\n\\newpage\n")
+```
+
+#### drugs
+
+```{r}
+#| label: drug
+#| echo: false
+#| warning: false
+#| results: asis
+#| fig-align: "center"
+#| fig-width: 3
+#| fig-height: 2
+
+malfoSet <- eurocatData_merged_last_pre_DMS %>% select(c("drugs1", "drugs2", "drugs3", "drugs4", "drugs5"))
+
+for(var in colnames(malfoSet)){
+   
+  tab <- as.data.frame(table(malfoSet[[var]], useNA = "ifany"))
+          if(nrow(tab)>0){
+            cat("#####", var, "\n")
+            {
+              brp <- malfoSet %>% ggplot(aes(get(var))) + geom_bar(aes(y = (..count..)/sum(..count..))) + scale_y_continuous(labels=scales::percent) +  xlab(var) + ylab("counts(%)") + theme_light() + theme(axis.text.x=element_blank())
+          print(brp)
+          cat("\n")
+          }
+          colnames(tab)[1] <- var
+          print(
+            tab %>%
+            knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "10cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10)
+          )
+          }
+  cat("\n\\newpage\n")
+      }
+```
+
+#### sp_drugs
+
+```{r}
+#| label: sp_drug
+#| echo: false
+#| warning: false
+#| results: asis
+#| fig-align: "center"
+#| fig-width: 3
+#| fig-height: 2
+
+malfoSet <- eurocatData_merged_last_pre_DMS %>% select(c("sp_drugs", "sp_drugs_2", "sp_drugs_3", "sp_drugs_4", "sp_drugs_5"))
+
+for(var in colnames(malfoSet)){
+   
+  tab <- as.data.frame(table(malfoSet[[var]], useNA = "ifany"))
+          if(nrow(tab)>0){
+            cat("#####", var, "\n")
+              colnames(tab)[1] <- var
+              print(
+              tab %>%
+              knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "10cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10)
+            )
+            }
+    cat("\n\\newpage\n")
+        }
+
+```
+
+#### illbef1
+
+```{r}
+#| label: illbef1
+#| echo: false
+#| warning: false
+#| results: asis
+#| fig-align: "center"
+#| fig-width: 3
+#| fig-height: 2
+
+brp<-ggplot(eurocatData_merged_last_pre_DMS, aes(illbef1)) + geom_bar() + xlab("illbef1") + ylab("counts(n)") + theme_light() + theme(axis.text.x=element_blank())
+print(brp)
+
+tab<-as.data.frame(table(eurocatData_merged_last_pre_DMS$illbef1, useNA = "ifany"))
+colnames(tab)[1] <- c("illbef1")
+
+tab %>% filter(Freq>1) %>%
+  knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "5cm") %>% column_spec(2, width = "5cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+cat("\n\n\\newpage\n")
+```
+
+#### sp_illbef1
+
+```{r}
+#| label: sp_illbef1
+#| echo: false
+#| warning: false
+#| results: asis
+
+
+tab <- as.data.frame(table(eurocatData_merged_last_pre_DMS$sp_illbef1, useNA = "ifany"))
+colnames(tab)[1] <- "sp_illbef1"
+
+tab %>% 
+  knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "10cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+cat("\n\\newpage\n")
+```
+
+#### illbef2
+
+```{r}
+#| label: illbef2
+#| echo: false
+#| warning: false
+#| results: asis
+#| fig-align: "center"
+#| fig-width: 3
+#| fig-height: 2
+
+brp<-ggplot(eurocatData_merged_last_pre_DMS, aes(illbef2)) + geom_bar() + xlab("illbef2") + ylab("counts(n)") + theme_light() + theme(axis.text.x=element_blank())
+print(brp)
+
+tab<-as.data.frame(table(eurocatData_merged_last_pre_DMS$illbef2, useNA = "ifany"))
+colnames(tab)[1] <- c("illbef2")
+
+tab %>% filter(Freq>1) %>%
+  knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "5cm") %>% column_spec(2, width = "5cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+cat("\n\n\\newpage\n")
+```
+
+#### sp_illbef2
+
+```{r}
+#| label: sp_illbef2
+#| echo: false
+#| warning: false
+#| results: asis
+
+
+tab <- as.data.frame(table(eurocatData_merged_last_pre_DMS$sp_illbef2, useNA = "ifany"))
+colnames(tab)[1] <- "sp_illbef2"
+
+tab %>% 
+  knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "10cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+cat("\n\\newpage\n")
+```
+
+#### illdur1
+
+```{r}
+#| label: illdur1
+#| echo: false
+#| warning: false
+#| results: asis
+#| fig-align: "center"
+#| fig-width: 3
+#| fig-height: 2
+
+brp<-ggplot(eurocatData_merged_last_pre_DMS, aes(illdur1)) + geom_bar() + xlab("illdur1") + ylab("counts(n)") + theme_light() + theme(axis.text.x=element_blank())
+print(brp)
+
+tab<-as.data.frame(table(eurocatData_merged_last_pre_DMS$illdur1, useNA = "ifany"))
+colnames(tab)[1] <- c("illdur1")
+
+tab %>% filter(Freq>1) %>%
+  knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "5cm") %>% column_spec(2, width = "5cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+cat("\n\n\\newpage\n")
+```
+
+#### sp_illdur1
+
+```{r}
+#| label: sp_illdur1
+#| echo: false
+#| warning: false
+#| results: asis
+
+
+tab <- as.data.frame(table(eurocatData_merged_last_pre_DMS$sp_illdur1, useNA = "ifany"))
+colnames(tab)[1] <- "sp_illdur1"
+
+tab %>% 
+  knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "10cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+cat("\n\\newpage\n")
+```
+
+#### illdur2
+
+```{r}
+#| label: illdur2
+#| echo: false
+#| warning: false
+#| results: asis
+#| fig-align: "center"
+#| fig-width: 3
+#| fig-height: 2
+
+brp<-ggplot(eurocatData_merged_last_pre_DMS, aes(illdur2)) + geom_bar() + xlab("illdur2") + ylab("counts(n)") + theme_light() + theme(axis.text.x=element_blank())
+print(brp)
+
+tab<-as.data.frame(table(eurocatData_merged_last_pre_DMS$illdur2, useNA = "ifany"))
+colnames(tab)[1] <- c("illdur2")
+
+tab %>% filter(Freq>1) %>%
+  knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "5cm") %>% column_spec(2, width = "5cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+cat("\n\n\\newpage\n")
+```
+
+#### sp_illdur2
+
+```{r}
+#| label: sp_illdur2
+#| echo: false
+#| warning: false
+#| results: asis
+
+
+tab <- as.data.frame(table(eurocatData_merged_last_pre_DMS$sp_illdur2, useNA = "ifany"))
+colnames(tab)[1] <- "sp_twin"
+
+tab %>% 
+  knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "10cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+cat("\n\\newpage\n")
+```
+
+```{r}
+#| label: sp_other
+#| echo: false
+#| warning: false
+#| results: asis
+#| fig-align: "center"
+#| fig-width: 3
+#| fig-height: 2
+
+malfoSet <- eurocatData_merged_last_pre_DMS %>% select(c("omim", "orpha", "agefa", "occupmo", "sp_sibanom", "sp_moanom", "sp_faanom"))
+
+for(var in colnames(malfoSet)){
+   
+  tab <- as.data.frame(table(malfoSet[[var]], useNA = "ifany"))
+          if(nrow(tab)>0){
+            cat("#####", var, "\n")
+              colnames(tab)[1] <- var
+              print(
+              tab %>%
+              knitr::kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, width = "10cm") %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10)
+            )
+            }
+    cat("\n\\newpage\n")
+        }
+```
+
+## Cross tabulations
+
+### Sex by type of birth
+
+**Sex**: 1 = Male 2 = Female 3 = Indeterminate 9 = Not known
+
+**Type of birth**: 1 = Live birth 2 = Stillbirth 3 = Spontaneous abortion 4 = TOPFA 9 = Not known
+
+**Not admissible values**: to be defined
+
+```{r}
+#| label: sex_type
+#| echo: false
+#| warning: false
+#| results: asis
+
+
+sexTypeTable <- eurocatData_merged_last_pre_DMS %>% 
+  tabyl(sex, type) %>% 
+  adorn_totals( where = c("row", "col") ) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns( position = "front" ) %>%
+  adorn_title("combined")
+
+sexTypeTable %>%
+  kable(fixed_thead = T) %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, bold = TRUE) %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+
+cat("\n\\newpage\n")
+```
+
+### Sex unknown AND live birth by data_source
+
+**Sex**: 1 = Male 2 = Female 3 = Indeterminate 9 = Not known
+
+**Type of birth**: 1 = Live birth 2 = Stillbirth 3 = Spontaneous abortion 4 = TOPFA 9 = Not known
+
+**data_sources**: 1 = EDC 2 = SDO
+
+**Not admissible values**: to be defined
+
+```{r}
+#| label: Sex unknown AND live birth by data_source
+#| echo: false
+#| warning: false
+#| results: asis
+
+
+filtered_data <- eurocatData_merged_last_pre_DMS %>% 
+  filter(sex == 9 & type == 1)
+
+if (nrow(filtered_data) == 0) {
+
+  cat("No records with sex == 9 and type == 1\n")
+
+} else {
+
+  sexTypeTable <- filtered_data %>% 
+    tabyl(sex, data_source) %>% 
+    adorn_totals(where = c("row", "col")) %>%
+    adorn_percentages("row") %>%
+    adorn_pct_formatting() %>%
+    adorn_ns(position = "front") %>%
+    adorn_title("combined")
+
+  sexTypeTable %>%
+    kable(fixed_thead = TRUE) %>% 
+    row_spec(row = 0, background = 'lightgray') %>% 
+    column_spec(1, bold = TRUE) %>% 
+    kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+    print()
+}
+
+cat("\n\\newpage\n")
+```
+
+### Survival by type of birth
+
+**Survival**: 1 = Yes 2 = No 3 = Alive at discharge \<1 week 9 = Not known
+
+**Type of birth**: 1 = Live birth 2 = Stillbirth 3 = Spontaneous abortion 4 = TOPFA 9 = Not known
+
+**Not admissible values**: to be defined
+
+```{r}
+#| label: surv_type
+#| echo: false
+#| warning: false
+#| results: asis
+
+
+survivalTypeTable <- eurocatData_merged_last_pre_DMS %>% 
+  tabyl(survival, type) %>% 
+  adorn_totals( where = c("row", "col") ) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns( position = "front" ) %>%
+  adorn_title("combined")
+
+survivalTypeTable %>%
+  kable(fixed_thead = T) %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, bold = TRUE) %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+
+cat("\n\\newpage\n")
+```
+
+### datemo (NA) by data_source
+
+Missing mother birth date by data source.
+
+```{r}
+#| label: datemo_data_source
+#| echo: false
+#| warning: false
+#| results: asis
+
+eurocatData_merged_last_pre_DMS$missing_datemo <- ifelse(is.na(eurocatData_merged_last_pre_DMS$datemo), "Yes", "No")
+missDatemoDataSourceTable <- eurocatData_merged_last_pre_DMS %>% 
+  tabyl(missing_datemo, data_source) %>% 
+  adorn_totals( where = c("row", "col") ) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns( position = "front" ) %>%
+  adorn_title("combined")
+
+missDatemoDataSourceTable %>%
+  kable(fixed_thead = T) %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, bold = TRUE) %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+
+cat("\n\\newpage\n")
+```
+
+### Survival by death date
+
+Casi, esclusi TOPFA, che sono registrati come non sopravvissuti alla prima settimana di vita ma per cui non è presente la data d morte.
+
+**Survival**: 1 = Yes 2 = No 3 = Alive at discharge \<1 week 9 = Not known
+
+```{r}
+#| label: surv_death_date
+#| echo: false
+#| warning: false
+#| results: asis
+
+eurocatData_merged_last_pre_DMS$surv_deathadate <- ifelse(is.na(eurocatData_merged_last_pre_DMS$death_date) | eurocatData_merged_last_pre_DMS$death_date == "222222", "Missing", "Available")
+
+survDeathDateTable <- eurocatData_merged_last_pre_DMS %>% 
+  filter(type != 4) %>%
+  tabyl(survival, surv_deathadate) %>% 
+  adorn_totals( where = c("row", "col") ) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns( position = "front" ) %>%
+  adorn_title("combined")
+
+survDeathDateTable %>%
+  kable(fixed_thead = T) %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, bold = TRUE) %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+
+cat("\n\\newpage\n")
+```
+
+### nbrmalf by nbrbaby
+
+**nbrmalf**: 1 = One 2 = Two 3 = Three 4 = Four 5 = Five 6 = Six or more 9 = Not known
+
+**nbrbaby**: 1 = Singleton 2 = Twins 3 = Triplets 4 = Quadruplets 5 = Quintuplets 6 = Sextuplets or more 7 = Multiple birth, number of babies not known 8 = Singleton at time of delivery/termination, but known to have been a multiple pregnancy at an earlier stage in pregnancy 9 = Not known
+
+**Not admissible values**: to be defined
+
+```{r}
+#| label: nbrmalf_nbrbaby
+#| echo: false
+#| warning: false
+#| results: asis
+
+nbrMalfBabyTable <- eurocatData_merged_last_pre_DMS %>% 
+  tabyl(nbrmalf, nbrbaby) %>% 
+  adorn_totals( where = c("row", "col") ) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns( position = "front" ) %>%
+  adorn_title("combined")
+
+nbrMalfBabyTable %>%
+  kable(fixed_thead = T) %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, bold = TRUE) %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+
+cat("\n\\newpage\n")
+```
+
+### firstpre by whendisc
+
+**firstpre**: 1 = Ultrasound at GA \< 14 weeks 2 = Ultrasound at GA 14-21 weeks 3 = Ultrasound at GA ≥ 22 weeks 4 = Ultrasound GA not known 5 = Serum/ combined screening 6 = Chorion villus sampling or amniocentesis 7 = Other test positive 8 = Test(s) performed, result negative 9 = Not known 10 = No test performed 11 = Fetal karyotype on maternal blood
+
+**whendisc**: 1 = At birth 2 = Less than 1 week 3 = 1-4 weeks 4 = 1-12 months 5 = Over 12 months 6 = Prenatal diagnosis in live fetus 7 = At abortion (spontaneous) 9 = Not known 10 = Postnatal diagnosis, age not known
+
+**Not admissible values**: to be defined
+
+```{r}
+#| label: firstpre_whendisc
+#| echo: false
+#| warning: false
+#| results: asis
+#| 
+
+firstpreWhendiscTable <- eurocatData_merged_last_pre_DMS %>% 
+  tabyl(firstpre, whendisc) %>% 
+  adorn_totals( where = c("row", "col") ) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns( position = "front" ) %>%
+  adorn_title("combined")
+
+firstpreWhendiscTable %>%
+  kable(fixed_thead = T) %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, bold = TRUE) %>% kable_styling(latex_options = "scale_down", font_size = 8) %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+
+cat("\n\\newpage\n")
+```
+
+### presyn by whendisc
+
+**presyn**: 1 = Yes, this anomaly was diagnosed prenatally 2 = No, this anomaly was diagnosed postnatally 9 = Not known
+
+**whendisc**: 1 = At birth 2 = Less than 1 week 3 = 1-4 weeks 4 = 1-12 months 5 = Over 12 months 6 = Prenatal diagnosis in live fetus 7 = At abortion (spontaneous) 9 = Not known 10 = Postnatal diagnosis, age not known
+
+**Not admissible values**: to be defined
+
+```{r}
+#| label: presyn_whendisc
+#| echo: false
+#| warning: false
+#| results: asis
+#| 
+
+presynWhendiscTable <- eurocatData_merged_last_pre_DMS %>% 
+  filter(!is.na(syndrome)) %>%
+  tabyl(presyn, whendisc) %>% 
+  adorn_totals( where = c("row", "col") ) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns( position = "front" ) %>%
+  adorn_title("combined")
+
+presynWhendiscTable %>%
+  kable(fixed_thead = T) %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, bold = TRUE) %>% kable_styling(latex_options = "scale_down", font_size = 8) %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+
+cat("\n\\newpage\n")
+```
+
+### gentest by karyo
+
+**gentest**: 1 = specific genetic test positive 2 = specific genetic test negative 3 = Specific genetic test not Performed 9 = Not Known if genetic test is performed or result not known
+
+**karyo**: 1 = Performed, result known 2 = Performed, results not known 3 = Not performed 4 = Probe test performed 8 = Failed 9 = Not known
+
+**Not admissible values**: to be defined
+
+```{r}
+#| label: gentest_karyo
+#| echo: false
+#| warning: false
+#| results: asis
+
+gentestKaryoTable <- eurocatData_merged_last_pre_DMS %>% 
+  tabyl(gentest, karyo) %>% 
+  adorn_totals( where = c("row", "col") ) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns( position = "front" ) %>%
+  adorn_title("combined")
+
+gentestKaryoTable %>%
+  kable(fixed_thead = T) %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, bold = TRUE) %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+
+cat("\n\\newpage\n")
+```
+
+### pm by type
+
+**pm**: 1 = Performed, results known 2 = Performed, results not known 3 = Not performed 4 = Macerated fetus 9 = Not known
+
+**Type of birth**: 1 = Live birth 2 = Stillbirth 3 = Spontaneous abortion 4 = TOPFA 9 = Not known
+
+**Not admissible values**: to be defined
+
+```{r}
+#| label: pm_type
+#| echo: false
+#| warning: false
+#| results: asis
+
+pmTypeTable <- eurocatData_merged_last_pre_DMS %>% 
+  tabyl(pm, type) %>% 
+  adorn_totals( where = c("row", "col") ) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns( position = "front" ) %>%
+  adorn_title("combined")
+
+pmTypeTable %>%
+  kable(fixed_thead = T) %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, bold = TRUE) %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+
+cat("\n\\newpage\n")
+```
+
+### malfo1 and sp_malfo1 (missing)
+
+```{r}
+#| label: malfo1_sp_malfo1
+#| echo: false
+#| warning: false
+#| results: asis
+
+eurocatData_merged_last_pre_DMS$isnaSp_malfo1 <- ifelse(eurocatData_merged_last_pre_DMS$sp_malfo1 == "-" | is.na(eurocatData_merged_last_pre_DMS$sp_malfo1), "Missing", "Available")
+
+malfoSpmalfoTable <- eurocatData_merged_last_pre_DMS %>% 
+  tabyl(malfo1, isnaSp_malfo1) %>% 
+  adorn_totals( where = c("row", "col") ) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns( position = "front" ) %>%
+  adorn_title("combined")
+
+malfoSpmalfoTable %>%
+  kable(fixed_thead = T, longtable = T) %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, bold = TRUE) %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>% print()
+
+cat("\n\\newpage\n")
+```
+
+### malfo2 and sp_malfo2 (missing)
+
+```{r}
+#| label: malfo2_sp_malfo2
+#| echo: false
+#| warning: false
+#| results: asis
+
+eurocatData_merged_last_pre_DMS$isnaSp_malfo2 <- ifelse(eurocatData_merged_last_pre_DMS$sp_malfo2 == "-" | is.na(eurocatData_merged_last_pre_DMS$sp_malfo2), "Missing", "Available")
+
+malfoSpmalfoTable <- eurocatData_merged_last_pre_DMS %>% 
+  tabyl(malfo2, isnaSp_malfo2) %>% 
+  adorn_totals( where = c("row", "col") ) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns( position = "front" ) %>%
+  adorn_title("combined")
+
+malfoSpmalfoTable %>%
+  kable(fixed_thead = T, longtable = T) %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, bold = TRUE) %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+
+cat("\n\\newpage\n")
+```
+
+### malfo3 and sp_malfo3 (missing)
+
+```{r}
+#| label: malfo3_sp_malfo3
+#| echo: false
+#| warning: false
+#| results: asis
+
+eurocatData_merged_last_pre_DMS$isnaSp_malfo3 <- ifelse(eurocatData_merged_last_pre_DMS$sp_malfo3 == "-" | is.na(eurocatData_merged_last_pre_DMS$sp_malfo3), "Missing", "Available")
+
+malfoSpmalfoTable <- eurocatData_merged_last_pre_DMS %>% 
+  tabyl(malfo3, isnaSp_malfo3) %>% 
+  adorn_totals( where = c("row", "col") ) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns( position = "front" ) %>%
+  adorn_title("combined")
+
+malfoSpmalfoTable %>%
+  kable(fixed_thead = T, longtable = T) %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, bold = TRUE) %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+
+cat("\n\\newpage\n")
+```
+
+### malfo4 and sp_malfo4 (missing)
+
+```{r}
+#| label: malfo4_sp_malfo4
+#| echo: false
+#| warning: false
+#| results: asis
+
+eurocatData_merged_last_pre_DMS$isnaSp_malfo4 <- ifelse(eurocatData_merged_last_pre_DMS$sp_malfo4 == "-" | is.na(eurocatData_merged_last_pre_DMS$sp_malfo4), "Missing", "Available")
+
+malfoSpmalfoTable <- eurocatData_merged_last_pre_DMS %>% 
+  tabyl(malfo4, isnaSp_malfo4) %>% 
+  adorn_totals( where = c("row", "col") ) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns( position = "front" ) %>%
+  adorn_title("combined")
+
+malfoSpmalfoTable %>%
+  kable(fixed_thead = T, longtable = T) %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, bold = TRUE) %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+
+cat("\n\\newpage\n")
+```
+
+### malfo5 and sp_malfo5 (missing)
+
+```{r}
+#| label: malfo5_sp_malfo5
+#| echo: false
+#| warning: false
+#| results: asis
+
+eurocatData_merged_last_pre_DMS$isnaSp_malfo5 <- ifelse(eurocatData_merged_last_pre_DMS$sp_malfo5 == "-" | is.na(eurocatData_merged_last_pre_DMS$sp_malfo5), "Missing", "Available")
+
+malfoSpmalfoTable <- eurocatData_merged_last_pre_DMS %>% 
+  tabyl(malfo5, isnaSp_malfo5) %>% 
+  #adorn_totals( where = c("row", "col") ) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns( position = "front" ) %>%
+  adorn_title("combined")
+
+malfoSpmalfoTable %>%
+  kable(fixed_thead = T, longtable = T) %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, bold = TRUE) %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+
+cat("\n\\newpage\n")
+```
+
+### malfo6 and sp_malfo6 (missing)
+
+```{r}
+#| label: malfo6_sp_malfo6
+#| echo: false
+#| warning: false
+#| results: asis
+
+eurocatData_merged_last_pre_DMS$isnaSp_malfo6 <- ifelse(eurocatData_merged_last_pre_DMS$sp_malfo6 == "-" | is.na(eurocatData_merged_last_pre_DMS$sp_malfo6), "Missing", "Available")
+
+malfoSpmalfoTable <- eurocatData_merged_last_pre_DMS %>% 
+  tabyl(malfo6, isnaSp_malfo6) %>% 
+  adorn_totals( where = c("row", "col") ) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns( position = "front" ) %>%
+  adorn_title("combined")
+
+malfoSpmalfoTable %>%
+  kable(fixed_thead = T, longtable = T) %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, bold = TRUE) %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+
+cat("\n\\newpage\n")
+```
+
+### malfo7 and sp_malfo7 (missing)
+
+```{r}
+#| label: malfo7_sp_malfo7
+#| echo: false
+#| warning: false
+#| results: asis
+
+eurocatData_merged_last_pre_DMS$isnaSp_malfo7 <- ifelse(eurocatData_merged_last_pre_DMS$sp_malfo7 == "-" | is.na(eurocatData_merged_last_pre_DMS$sp_malfo7), "Missing", "Available")
+
+malfoSpmalfoTable <- eurocatData_merged_last_pre_DMS %>% 
+  tabyl(malfo7, isnaSp_malfo7) %>% 
+  adorn_totals( where = c("row", "col") ) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns( position = "front" ) %>%
+  adorn_title("combined")
+
+malfoSpmalfoTable %>%
+  kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, bold = TRUE) %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+
+cat("\n\\newpage\n")
+```
+
+### malfo8 and sp_malfo8 (missing)
+
+```{r}
+#| label: malfo8_sp_malfo8
+#| echo: false
+#| warning: false
+#| results: asis
+
+eurocatData_merged_last_pre_DMS$isnaSp_malfo8 <- ifelse(eurocatData_merged_last_pre_DMS$sp_malfo8 == "-" | is.na(eurocatData_merged_last_pre_DMS$sp_malfo8), "Missing", "Available")
+
+malfoSpmalfoTable <- eurocatData_merged_last_pre_DMS %>% 
+  tabyl(malfo8, isnaSp_malfo8) %>% 
+  adorn_totals( where = c("row", "col") ) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns( position = "front" ) %>%
+  adorn_title("combined")
+
+malfoSpmalfoTable %>%
+  kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, bold = TRUE) %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+
+cat("\n\\newpage\n")
+```
+
+### syndrome and sp_syndrome (missing)
+
+```{r}
+#| label: syndrome_sp_syndrome
+#| echo: false
+#| warning: false
+#| results: asis
+
+eurocatData_merged_last_pre_DMS$isnaSp_syndrome <- ifelse(eurocatData_merged_last_pre_DMS$syndrome == "-" | is.na(eurocatData_merged_last_pre_DMS$syndrome), "Missing", "Available")
+
+malfoSyndromeTable <- eurocatData_merged_last_pre_DMS %>% 
+  tabyl(syndrome, isnaSp_syndrome) %>% 
+  adorn_totals( where = c("row", "col") ) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns( position = "front" ) %>%
+  adorn_title("combined")
+
+malfoSyndromeTable %>%
+  kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, bold = TRUE) %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+
+cat("\n\\newpage\n")
+```
+
+### Missing syndrome and malfo1
+
+**Not admissible values**: Missing/Missing
+
+```{r}
+#| label: missing_syndrome_malfo1
+#| echo: false
+#| warning: false
+#| results: asis
+
+eurocatData_merged_last_pre_DMS$isnaSyndrome <- ifelse(eurocatData_merged_last_pre_DMS$syndrome == "" | is.na(eurocatData_merged_last_pre_DMS$syndrome), "Missing", "Available")
+
+eurocatData_merged_last_pre_DMS$isnaMalfo1 <- ifelse(eurocatData_merged_last_pre_DMS$malfo1 == "" | is.na(eurocatData_merged_last_pre_DMS$malfo1), "Missing", "Available")
+
+isnaMalfo1IsnaSyndromeTable <- eurocatData_merged_last_pre_DMS %>% 
+  tabyl(isnaSyndrome, isnaMalfo1) %>% 
+  adorn_totals( where = c("row", "col") ) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns( position = "front" ) %>%
+  adorn_title("combined")
+
+isnaMalfo1IsnaSyndromeTable %>%
+  kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, bold = TRUE) %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+
+cat("\n\\newpage\n")
+```
+
+### faanom and sp_faanom
+
+**faanom**: 1 = Same 2 = Other 3 = Same and other 4 = No 9 = Not known
+
+**Not admissible values**: to be defined
+
+```{r}
+#| label: faanom_sp_faanom
+#| echo: false
+#| warning: false
+#| results: asis
+
+eurocatData_merged_last_pre_DMS$isnaSp_faanom <- ifelse(eurocatData_merged_last_pre_DMS$sp_faanom == "-" | is.na(eurocatData_merged_last_pre_DMS$sp_faanom), "Missing", "Available")
+
+faanomSp_faanomTable <- eurocatData_merged_last_pre_DMS %>% 
+  tabyl(faanom, isnaSp_faanom) %>% 
+  adorn_totals( where = c("row", "col") ) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns( position = "front" ) %>%
+  adorn_title("combined")
+
+faanomSp_faanomTable %>%
+  kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, bold = TRUE) %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+
+cat("\n\\newpage\n")
+```
+
+### moanom and sp_moanom
+
+**moanom**: 1 = Same 2 = Other 3 = Same and other 4 = No 9 = Not known
+
+**Not admissible values**: to be defined
+
+```{r}
+#| label: moanom_sp_moanom
+#| echo: false
+#| warning: false
+#| results: asis
+
+eurocatData_merged_last_pre_DMS$isnaSp_moanom <- ifelse(eurocatData_merged_last_pre_DMS$sp_moanom == "-" | is.na(eurocatData_merged_last_pre_DMS$sp_moanom), "Missing", "Available")
+
+moanomSp_moanomTable <- eurocatData_merged_last_pre_DMS %>% 
+  tabyl(moanom, isnaSp_moanom) %>% 
+  adorn_totals( where = c("row", "col") ) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns( position = "front" ) %>%
+  adorn_title("combined")
+
+moanomSp_moanomTable %>%
+  kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, bold = TRUE) %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+
+cat("\n\\newpage\n")
+```
+
+### sibanom and sp_sibanom
+
+**sibanom**: 1 = Same 2 = Other 3 = Same and other 4 = No 9 = Not known
+
+**Not admissible values**: to be defined
+
+```{r}
+#| label: sibanom_sp_sibanom
+#| echo: false
+#| warning: false
+#| results: asis
+
+eurocatData_merged_last_pre_DMS$isnaSp_sibanom <- ifelse(eurocatData_merged_last_pre_DMS$sp_sibanom == "-" | is.na(eurocatData_merged_last_pre_DMS$sp_sibanom), "Missing", "Available")
+
+sibanomSp_sibanomTable <- eurocatData_merged_last_pre_DMS %>% 
+  tabyl(sibanom, isnaSp_sibanom) %>% 
+  adorn_totals( where = c("row", "col") ) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns( position = "front" ) %>%
+  adorn_title("combined")
+
+sibanomSp_sibanomTable %>%
+  kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, bold = TRUE) %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+
+cat("\n\\newpage\n")
+```
+
+### firsttri by DRUGS1
+
+**firsttri**: 1 = Yes, medication taken in first trimester 2 = No medication taken in first trimester 4 = Medication taken, but timing unknown 9 = Not Known
+
+**Not admissible values**: to be defined
+
+```{r}
+#| label: firsttri_drugs1
+#| echo: false
+#| warning: false
+#| results: asis
+
+eurocatData_merged_last_pre_DMS$isnaDrugs1 <- ifelse(eurocatData_merged_last_pre_DMS$drugs1 == "-" | is.na(eurocatData_merged_last_pre_DMS$drugs1), "Missing", "Available")
+
+firsttriDrugs1Table <- eurocatData_merged_last_pre_DMS %>% 
+  tabyl(firsttri, isnaDrugs1) %>% 
+  adorn_totals( where = c("row", "col") ) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns( position = "front" ) %>%
+  adorn_title("combined")
+
+firsttriDrugs1Table %>%
+  kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, bold = TRUE) %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+
+cat("\n\\newpage\n")
+```
+
+### code_pres by data_source
+
+**code_pres**: list of codes
+
+**data_source**: EDC SDO
+
+**Not admissible values**: to be defined
+
+```{r}
+#| label: cod_pres_data_source
+#| echo: false
+#| warning: false
+#| results: asis
+
+codpresDatasourceTable <- eurocatData_merged_last_pre_DMS %>% 
+  tabyl(cod_pres, data_source) %>% 
+  adorn_totals( where = c("row", "col") ) %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting() %>%
+  adorn_ns( position = "front" ) %>%
+  adorn_title("combined")
+
+codpresDatasourceTable %>%
+  kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, bold = TRUE) %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  print()
+
+cat("\n\\newpage\n")
+```
+
+## System info
+
+```{r}
+#| echo: false
+#| warning: false
+
+Sys.time()
+sessionInfo()
+```

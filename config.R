@@ -348,3 +348,23 @@ cedap_linked_vars <- c(
   "ABITUDINE_AL_FUMO"
 )
 
+
+
+vars_numeric <- c(
+  "sex","type","survival",
+  "nbrbaby","nbrmalf","totpreg",
+  "weight","gestlength",
+  "agemo","bmi",
+  "whendisc","agedisc","condisc",
+  "firstpre","pm","presyn",
+  "premal1","premal2","premal3","premal4",
+  "premal5","premal6","premal7","premal8",
+  "cov_severity","consang","sibanom",
+  "moanom","faanom","matedu","socm",
+  "amniocentesis","chorvilsam","ultrason",
+  "pre_sa","pre_topfa","pre_live","pre_still",
+  "start_cov"
+)
+
+
+

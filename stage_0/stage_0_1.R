@@ -14,7 +14,7 @@ setwd(baseDir)
 
 # DATA LOAD ----
 
-redcapData <- read_csv2(paste0(redcapDir, "/redcap_test_data.csv"))
+redcapData <- read_csv2(paste0(exportDir, "/redcap_preprocess.csv"))
 rm(data)
 
 print("Reading CedAP data..")

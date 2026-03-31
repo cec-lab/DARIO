@@ -327,3 +327,5 @@ levels(data$sociodemographic_complete.factor)=c("Incomplete","Unverified","Compl
 levels(data$comments_and_documents_complete.factor)=c("Incomplete","Unverified","Complete")
 levels(data$record_validation.factor)=c("Yes","No")
 levels(data$record_validation_complete.factor)=c("Incomplete","Unverified","Complete")
+
+write_csv2(data, file = paste0(exportDir, "/redcap_preprocess.csv"))

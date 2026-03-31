@@ -60,68 +60,18 @@ removeSDO <- which(sdoData$prog_paz_neo %in% redcapData$prog_paz_neo)
 sdoRemovedData <- sdoData[sdoData$prog_paz_neo %in% redcapData$prog_paz_neo, ]
 sdoMergeData   <- sdoData[!sdoData$prog_paz_neo %in% redcapData$prog_paz_neo, ]
 
-# STANDARDIZZAZIONE TIPI ----
+# STANDARDIZZAZIONE STRUTTURA DATI ----
 
-
-vars_numeric <- c(
-  "sex","type","survival",
-  "nbrbaby","nbrmalf","totpreg",
-  "weight","gestlength",
-  "agemo","bmi",
-  "whendisc","agedisc","condisc",
-  "firstpre","pm","presyn",
-  "premal1","premal2","premal3","premal4",
-  "premal5","premal6","premal7","premal8",
-  "cov_severity","consang","sibanom",
-  "moanom","faanom","matedu","socm",
-  "amniocentesis","chorvilsam","ultrason",
-  "pre_sa","pre_topfa","pre_live","pre_still",
-  "start_cov"
-)
-
-standardize_types <- function(df, vars_numeric){
-  
-  vars_numeric <- intersect(vars_numeric, names(df))
-  
-  # separo numeric e non numeric
-  vars_char <- setdiff(names(df), vars_numeric)
-  
-  df <- df %>%
-    mutate(across(all_of(vars_char), as.character)) %>%
-    mutate(across(all_of(vars_numeric), ~ suppressWarnings(as.numeric(.))))
-  
-  return(df)
-}
 
 redcapData <- standardize_types(redcapData, vars_numeric)
 sdoMergeData <- standardize_types(sdoMergeData, vars_numeric)
 
 
-# TRANSCODIFICA SDO (RIUSO COMPLETE.R) ----
+# TRANSCODIFICA SDO E REDCAP ----
 
 
-tmp_env <- new.env()
-
-tmp_env$redcapData <- sdoMergeData
-
-source(
-  paste0(baseDir,"/stage_4/complete.R"), #in ambiente separato altrimenti rm list cancella environment
-  local = tmp_env
-)
-
-sdoMergeData <- tmp_env$redcapData
-
-# REDCAP (RIPASSA IN COMPLETE) --------
-env_redcap <- new.env()
-env_redcap$redcapData <- redcapData
-
-source(
-  paste0(baseDir,"/stage_4/complete.R"),
-  local = env_redcap
-)
-
-redcapData <- env_redcap$redcapData
-
+sdoMergeData <- transcode_complete(sdoMergeData, eurocat_vars_list)
+redcapData   <- transcode_complete(redcapData, eurocat_vars_list)
 
 # HARMONIZE DATASET ----
 
@@ -166,7 +116,7 @@ for (v in date_vars) {
   sdoMergeData[[v]]  <- clean_date(sdoMergeData[[v]])
 }
 
-# -------- METADATI --------
+# -------- DATA SOURCE --------
 
 redcapData$data_source <- "EDC"
 

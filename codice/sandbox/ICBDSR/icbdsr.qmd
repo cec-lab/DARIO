@@ -1,0 +1,40 @@
+---
+title: "ICBDSR"
+author: "MM"
+format: html
+editor: visual
+---
+
+## ICBDSR
+
+Questo codice automatizza la preparazione del file dei casi annuali da inviare a ICBDSR. L'input sono:
+
+-   il file estratto dal DMS (Assisted extraction by year) "dms_export_yyyy.csv".
+
+-   il template fornito da ICBDSR "ICBDSR_template.xlsx"
+
+## Script
+
+#### Caricamento dati DMS
+
+```{r}
+
+```
+
+#### Caricamento template ICBDSR
+
+```{r}
+
+```
+
+#### Compilazione delle colonne del template
+
+```{r}
+
+```
+
+#### Esportazione del template compilato
+
+```{r}
+
+```

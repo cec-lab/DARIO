@@ -91,75 +91,31 @@ redcapData$assconcept <- recode(cedapDataLinked$metodi_PMA,
                                 .missing = "9") 
 
 
-redcapData$syndrome.factor <- as.character(redcapData$syndrome)
-redcapData$sp_syndrome <- str_split_i(redcapData$syndrome.factor, "\\|", 3)
-redcapData$sp_syndrome <- ifelse(!is.na(redcapData$syndrome_desc_detail), 
-                                 paste(redcapData$sp_syndrome, redcapData$syndrome_desc_detail), redcapData$sp_syndrome)
+# SYNDROME
+if("syndrome.factor" %in% names(redcapData)){
+  
+  res <- parse_pipe(redcapData$syndrome.factor)
+  
+  redcapData$syndrome <- res$code
+  redcapData$sp_syndrome <- res$desc
+}
 
 
-# MALFO 1
-tmp <- redcapData$malfo1
-redcapData$malfo1 <- str_replace(str_split_i(tmp, "\\|", 2), "\\.", "")
-redcapData$sp_malfo1 <- str_split_i(tmp, "\\|", 3)
-redcapData$sp_malfo1 <- ifelse(!is.na(redcapData$malfo1_desc_detail),
-                               paste(redcapData$sp_malfo1, redcapData$malfo1_desc_detail),
-                               redcapData$sp_malfo1)
-
-# MALFO 2
-tmp <- redcapData$malfo2
-redcapData$malfo2 <- str_replace(str_split_i(tmp, "\\|", 2), "\\.", "")
-redcapData$sp_malfo2 <- str_split_i(tmp, "\\|", 3)
-redcapData$sp_malfo2 <- ifelse(!is.na(redcapData$malfo2_desc_detail),
-                               paste(redcapData$sp_malfo2, redcapData$malfo2_desc_detail),
-                               redcapData$sp_malfo2)
-
-# MALFO 3
-tmp <- redcapData$malfo3
-redcapData$malfo3 <- str_replace(str_split_i(tmp, "\\|", 2), "\\.", "")
-redcapData$sp_malfo3 <- str_split_i(tmp, "\\|", 3)
-redcapData$sp_malfo3 <- ifelse(!is.na(redcapData$malfo3_desc_detail),
-                               paste(redcapData$sp_malfo3, redcapData$malfo3_desc_detail),
-                               redcapData$sp_malfo3)
-
-# MALFO 4
-tmp <- redcapData$malfo4
-redcapData$malfo4 <- str_replace(str_split_i(tmp, "\\|", 2), "\\.", "")
-redcapData$sp_malfo4 <- str_split_i(tmp, "\\|", 3)
-redcapData$sp_malfo4 <- ifelse(!is.na(redcapData$malfo4_desc_detail),
-                               paste(redcapData$sp_malfo4, redcapData$malfo4_desc_detail),
-                               redcapData$sp_malfo4)
-
-# MALFO 5
-tmp <- redcapData$malfo5
-redcapData$malfo5 <- str_replace(str_split_i(tmp, "\\|", 2), "\\.", "")
-redcapData$sp_malfo5 <- str_split_i(tmp, "\\|", 3)
-redcapData$sp_malfo5 <- ifelse(!is.na(redcapData$malfo5_desc_detail),
-                               paste(redcapData$sp_malfo5, redcapData$malfo5_desc_detail),
-                               redcapData$sp_malfo5)
-
-# MALFO 6
-tmp <- redcapData$malfo6
-redcapData$malfo6 <- str_replace(str_split_i(tmp, "\\|", 2), "\\.", "")
-redcapData$sp_malfo6 <- str_split_i(tmp, "\\|", 3)
-redcapData$sp_malfo6 <- ifelse(!is.na(redcapData$malfo6_desc_detail),
-                               paste(redcapData$sp_malfo6, redcapData$malfo6_desc_detail),
-                               redcapData$sp_malfo6)
-
-# MALFO 7
-tmp <- redcapData$malfo7
-redcapData$malfo7 <- str_replace(str_split_i(tmp, "\\|", 2), "\\.", "")
-redcapData$sp_malfo7 <- str_split_i(tmp, "\\|", 3)
-redcapData$sp_malfo7 <- ifelse(!is.na(redcapData$malfo7_desc_detail),
-                               paste(redcapData$sp_malfo7, redcapData$malfo7_desc_detail),
-                               redcapData$sp_malfo7)
-
-# MALFO 8
-tmp <- redcapData$malfo8
-redcapData$malfo8 <- str_replace(str_split_i(tmp, "\\|", 2), "\\.", "")
-redcapData$sp_malfo8 <- str_split_i(tmp, "\\|", 3)
-redcapData$sp_malfo8 <- ifelse(!is.na(redcapData$malfo8_desc_detail),
-                               paste(redcapData$sp_malfo8, redcapData$malfo8_desc_detail),
-                               redcapData$sp_malfo8)
+#MALFO
+for(i in 1:8){
+  
+  var_factor <- paste0("malfo", i, ".factor")
+  var <- paste0("malfo", i)
+  sp_var <- paste0("sp_malfo", i)
+  
+  if(var_factor %in% names(redcapData)){
+    
+    res <- parse_pipe(redcapData[[var_factor]])
+    
+    redcapData[[var]] <- res$code
+    redcapData[[sp_var]] <- res$desc
+  }
+}
 
 redcapData$illbef1 <- ifelse(!is.na(redcapData$icd10illbef1), redcapData$icd10illbef1, redcapData$illbef1)
 
