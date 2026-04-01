@@ -30,12 +30,44 @@ sdoData <- sdoData |> rename(data_source = source)
 sdoData <- sdoData |> rename(prog_paz_neo = prog_paz)
 sdoData$record_id <- as.character(sdoData$record_id)
 
+# CHECK DUPLICATI SDO ----
+
+dup_sdo <- sdoData %>%
+  count(prog_paz_neo) %>%
+  filter(n > 1)
+
+if(nrow(dup_sdo) > 0){
+  
+  cat(" DUPLICATI TROVATI IN SDO (prog_paz_neo):\n")
+  print(dup_sdo)
+  
+  cat("\n DETTAGLIO RECORD DUPLICATI:\n")
+  print(
+    sdoData %>%
+      filter(prog_paz_neo %in% dup_sdo$prog_paz_neo) %>%
+      arrange(prog_paz_neo)
+  )
+}
+
+
+# RISOLUZIONE DUPLICATI REDCAP ----
+
+dup_edc <- redcapData %>%
+  count(prog_paz_neo) %>%
+  filter(n > 1)
+redcapData <- resolve_redcap_duplicates(redcapData)
+
+#check
+redcapData %>%
+  filter(!is.na(prog_paz_neo)) %>%
+  filter(duplicated(prog_paz_neo) | duplicated(prog_paz_neo, fromLast = TRUE))
+
 
 # REMOVE SDO ALREADY RECORDED IN REDCAP ----
 
 common_ids <- intersect(sdoData$prog_paz_neo, redcapData$prog_paz_neo)
 
-# subset duplicati
+# subset duplicati tra sdo e redcap
 redcap_common <- redcapData[redcapData$prog_paz_neo %in% common_ids, ]
 sdo_common    <- sdoData[sdoData$prog_paz_neo %in% common_ids, ]
 
@@ -60,6 +92,7 @@ removeSDO <- which(sdoData$prog_paz_neo %in% redcapData$prog_paz_neo)
 sdoRemovedData <- sdoData[sdoData$prog_paz_neo %in% redcapData$prog_paz_neo, ]
 sdoMergeData   <- sdoData[!sdoData$prog_paz_neo %in% redcapData$prog_paz_neo, ]
 
+
 # STANDARDIZZAZIONE STRUTTURA DATI ----
 
 
@@ -78,39 +111,7 @@ redcapData   <- transcode_complete(redcapData, eurocat_vars_list)
 
 # -------- DATE CLEANING --------
 
-date_vars <- c("birth_date", "death_date", "datemo")
-
-clean_date <- function(x){
-  
-  x <- as.character(x)
-  out <- rep("xxxx/xx/xx", length(x))
-  
-  # Codici speciali
-  out[x == "222222"]     <- "2222/22/22"
-  out[x == "333333"]     <- "3333/33/33"
-  out[x == "999999"]     <- "xxxx/xx/xx"
-  out[x == "xx-xx-xxxx"] <- "xxxx/xx/xx"
-  out[x == "xxxx/xx/xx"] <- "xxxx/xx/xx"
-  
-  # yyyy-mm-dd
-  idx_iso <- grepl("^\\d{4}-\\d{2}-\\d{2}$", x)
-  out[idx_iso] <- format(as.Date(x[idx_iso], "%Y-%m-%d"), "%Y/%m/%d")
-  
-  # dd/mm/yyyy
-  idx_full <- grepl("^\\d{2}/\\d{2}/\\d{4}$", x)
-  out[idx_full] <- format(as.Date(x[idx_full], "%d/%m/%Y"), "%Y/%m/%d")
-  
-  # dd/mm/yy
-  idx_short <- grepl("^\\d{2}/\\d{2}/\\d{2}$", x)
-  if(any(idx_short)){
-    tmp <- as.Date(x[idx_short], "%d/%m/%y")
-    out[idx_short] <- format(tmp, "%Y/%m/%d")
-  }
-  
-  return(out)
-}
-
-# Applico a ENTRAMBI
+# Applico a ENTRAMBI funzione
 for (v in date_vars) {
   redcapData[[v]]    <- clean_date(redcapData[[v]])
   sdoMergeData[[v]]  <- clean_date(sdoMergeData[[v]])

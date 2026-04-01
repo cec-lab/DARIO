@@ -17,11 +17,12 @@ library(rlang)
 # ===============================
 baseDir= getwd()
 source(paste0(baseDir,"/config.R"))
+source(paste0(baseDir,"/functions.R"))
 
-eurocatData_test_Luca <- read_csv2(paste0(exportDir, "/eurocatData.csv"),  col_types = cols(
-  birth_date = col_character(),
-  death_date = col_character(),
-  datemo     = col_character()))
+
+eurocatData_test_Luca <- read_csv2(paste0(exportDir, "/eurocatData.csv"))
+eurocatData_test_Luca   <- transcode_complete(eurocatData_test_Luca, eurocat_vars_list)
+colSums(is.na(eurocatData_test_Luca))
 
 eurocatData_test_Luca <- eurocatData_test_Luca %>%
   rename(residmo = resmo)
@@ -59,11 +60,29 @@ traduci_regola <- function(regola){
   
   testo <- regola
   
-  # Pulizia doppie virgolette
+  # Pulizia
   testo <- gsub('""', '"', testo, fixed = TRUE)
   
   # ===============================
-  # grepl("^Q56", malfo1)
+  # MISSING (pattern completo)
+  # ===============================
+  
+  # (is.na(x) | x == "")
+  testo <- gsub(
+    "\\(is.na\\(([^)]+)\\) \\| \\1 == ''\\)",
+    "\\1 È VUOTO",
+    testo
+  )
+  
+  # !(is.na(x) | x == "")
+  testo <- gsub(
+    "!\\(is.na\\(([^)]+)\\) \\| \\1 == ''\\)",
+    "\\1 È COMPILATO",
+    testo
+  )
+  
+  # ===============================
+  # grepl
   # ===============================
   testo <- gsub(
     'grepl\\("\\^([A-Z0-9]+)",\\s*([a-zA-Z0-9_]+)\\)',
@@ -72,25 +91,20 @@ traduci_regola <- function(regola){
   )
   
   # ===============================
-  # is.na
+  # is.na residui
   # ===============================
-  testo <- gsub("!is.na\\(([^)]+)\\)", "\\1 NON È NA", testo)
+  testo <- gsub("!is.na\\(([^)]+)\\)", "\\1 È VALORIZZATO", testo)
   testo <- gsub("is.na\\(([^)]+)\\)", "\\1 È NA", testo)
   
   # ===============================
-  # %in% c(...)
+  # %in%
   # ===============================
-  testo <- gsub("%in% c\\(", " È ", testo)
-  testo <- gsub("!= c\\(", " NON È ", testo)
-  
-  # sostituzione virgole SOLO dopo %in%
+  testo <- gsub("%in% c\\(", " È TRA ", testo)
+  testo <- gsub("c\\(", "", testo)
   testo <- gsub(",", " O ", testo)
   
-  # rimuove c(
-  testo <- gsub("c\\(", "", testo)
-  
   # ===============================
-  # Negazione parentesi
+  # Negazione
   # ===============================
   testo <- gsub("!\\(", "NON (", testo)
   
@@ -110,12 +124,16 @@ traduci_regola <- function(regola){
   testo <- gsub(">", " MAGGIORE DI ", testo)
   testo <- gsub("<", " MINORE DI ", testo)
   
+  # ===============================
+  # Pulizia finale
+  # ===============================
   testo <- gsub("\\)", "", testo)
   testo <- gsub("\\s+", " ", testo)
   testo <- trimws(testo)
   
   return(testo)
 }
+
 # ============================================================
 # 4️⃣ FUNZIONE CHE APPLICA UNA REGOLA
 # ============================================================

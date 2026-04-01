@@ -36,6 +36,7 @@ cat("Starting configuration\n")
 
 baseDir = getwd()
 source(paste0(baseDir,"/config.R"), echo = TRUE)
+source(paste0(baseDir,"/functions.R"), echo = TRUE)
 source(paste0(baseDir,"/codice/rbiostatfunbox/funbox.R"), echo = TRUE)
 
 library(readxl)
@@ -69,7 +70,7 @@ count_missing_types <- function(x){
     `99`          = sum(x_chr == "99", na.rm = TRUE),
     `999`         = sum(x_chr == "999", na.rm = TRUE),
     `9999`        = sum(x_chr == "9999", na.rm = TRUE),
-    `-`           = sum(x_chr == "-", na.rm = TRUE),
+    `empty`       = sum(x_chr == "", na.rm = TRUE),
     `xxxx/xx/xx`  = sum(x_chr == "xxxx/xx/xx", na.rm = TRUE),
     `2222/22/22`  = sum(x_chr == "2222/22/22", na.rm = TRUE),
     `222222`  = sum(x_chr == "222222", na.rm = TRUE),
@@ -178,6 +179,8 @@ eurocatData_merged_last_pre_DMS <- read.csv2(
   paste0(exportDir, "/eurocatData.csv"),
   stringsAsFactors = FALSE
 )
+
+eurocatData_merged_last_pre_DMS   <- transcode_complete(eurocatData_merged_last_pre_DMS, eurocat_vars_list)
 
 # FIX UTF-8 GLOBALE 
 # eurocatData_merged_last_pre_DMS[] <- lapply(
@@ -311,6 +314,11 @@ write.csv2(
 #| results: asis
 
 vis_dat_wrapper(eurocatData_merged_last_pre_DMS)
+df_plot <- eurocatData_merged_last_pre_DMS %>%
+  select(syndrome, malfo1:malfo8) %>%
+  mutate(across(everything(), ~na_if(., "")))
+
+vis_dat_wrapper(df_plot)
 cat("\n\n\\newpage\n")
 ```
 
@@ -1572,25 +1580,46 @@ cat("\n\\newpage\n")
 #| warning: false
 #| results: asis
 
-eurocatData_merged_last_pre_DMS$isnaSyndrome <- ifelse(eurocatData_merged_last_pre_DMS$syndrome == "" | is.na(eurocatData_merged_last_pre_DMS$syndrome), "Missing", "Available")
+eurocatData_merged_last_pre_DMS$isnaSyndrome <- ifelse(
+  is.na(eurocatData_merged_last_pre_DMS$syndrome) | 
+  trimws(eurocatData_merged_last_pre_DMS$syndrome) == "",
+  "no", "si"
+)
 
-eurocatData_merged_last_pre_DMS$isnaMalfo1 <- ifelse(eurocatData_merged_last_pre_DMS$malfo1 == "" | is.na(eurocatData_merged_last_pre_DMS$malfo1), "Missing", "Available")
+eurocatData_merged_last_pre_DMS$isnaMalfo1 <- ifelse(
+  is.na(eurocatData_merged_last_pre_DMS$malfo1) | 
+  trimws(eurocatData_merged_last_pre_DMS$malfo1) == "",
+  "no", "si"
+)
+
+# forzo ordine righe/colonne
+eurocatData_merged_last_pre_DMS$isnaSyndrome <- factor(
+  eurocatData_merged_last_pre_DMS$isnaSyndrome,
+  levels = c("si","no")
+)
+
+eurocatData_merged_last_pre_DMS$isnaMalfo1 <- factor(
+  eurocatData_merged_last_pre_DMS$isnaMalfo1,
+  levels = c("si","no")
+)
 
 isnaMalfo1IsnaSyndromeTable <- eurocatData_merged_last_pre_DMS %>% 
   tabyl(isnaSyndrome, isnaMalfo1) %>% 
-  adorn_totals( where = c("row", "col") ) %>%
+  adorn_totals(where = c("row", "col")) %>%
   adorn_percentages("row") %>%
   adorn_pct_formatting() %>%
-  adorn_ns( position = "front" ) %>%
+  adorn_ns(position = "front") %>%
   adorn_title("combined")
 
 isnaMalfo1IsnaSyndromeTable %>%
-  kable() %>% row_spec(row = 0, background = 'lightgray') %>% column_spec(1, bold = TRUE) %>% kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
+  kable() %>% 
+  row_spec(row = 0, background = 'lightgray') %>% 
+  column_spec(1, bold = TRUE) %>% 
+  kable_styling(latex_options = c("repeat_header", "striped"), font_size = 10) %>%
   print()
 
 cat("\n\\newpage\n")
 ```
-
 ### faanom and sp_faanom
 
 **faanom**: 1 = Same 2 = Other 3 = Same and other 4 = No 9 = Not known
