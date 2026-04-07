@@ -35,9 +35,9 @@ cat("Starting configuration\n")
 # packages
 
 baseDir = getwd()
-source(paste0(baseDir,"/config.R"), echo = TRUE)
-source(paste0(baseDir,"/functions.R"), echo = TRUE)
-source(paste0(baseDir,"/codice/rbiostatfunbox/funbox.R"), echo = TRUE)
+source(paste0(baseDir,"/config.R"))
+source(paste0(baseDir,"/functions.R"))
+source(paste0(baseDir,"/codice/rbiostatfunbox/funbox.R"))
 
 library(readxl)
 library(readr)

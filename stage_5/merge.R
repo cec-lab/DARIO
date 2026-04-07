@@ -36,61 +36,24 @@ dup_sdo <- sdoData %>%
   count(prog_paz_neo) %>%
   filter(n > 1)
 
-if(nrow(dup_sdo) > 0){
-  
-  cat(" DUPLICATI TROVATI IN SDO (prog_paz_neo):\n")
-  print(dup_sdo)
-  
-  cat("\n DETTAGLIO RECORD DUPLICATI:\n")
-  print(
-    sdoData %>%
-      filter(prog_paz_neo %in% dup_sdo$prog_paz_neo) %>%
-      arrange(prog_paz_neo)
-  )
-}
+dup_edc <- redcapData %>%
+  count(prog_paz_neo) %>%
+  filter(n > 1)
+
+#write_csv2(dup_sdo....)
+#write_csv2(dup_edc....)
 
 
 # RISOLUZIONE DUPLICATI REDCAP ----
 
-dup_edc <- redcapData %>%
-  count(prog_paz_neo) %>%
-  filter(n > 1)
-redcapData <- resolve_redcap_duplicates(redcapData)
-
-#check
-redcapData %>%
-  filter(!is.na(prog_paz_neo)) %>%
-  filter(duplicated(prog_paz_neo) | duplicated(prog_paz_neo, fromLast = TRUE))
 
 
-# REMOVE SDO ALREADY RECORDED IN REDCAP ----
+# Rimuovi duplicati interni
+redcapData <- redcapData[!is.na(redcapData$prog_paz_neo), ]
+sdoData    <- sdoData[!is.na(sdoData$prog_paz_neo), ]
 
-common_ids <- intersect(sdoData$prog_paz_neo, redcapData$prog_paz_neo)
-
-# subset duplicati tra sdo e redcap
-redcap_common <- redcapData[redcapData$prog_paz_neo %in% common_ids, ]
-sdo_common    <- sdoData[sdoData$prog_paz_neo %in% common_ids, ]
-
-redcap_common <- redcap_common %>%
-  mutate(across(everything(), as.character))
-
-redcapData <- redcapData %>%
-  mutate(across(everything(), as.character))
-
-
-# funzione: Se stesso prog_paz_neo:guarda la cella in REDCap <- se è vuota (NA o “”) e in SDO c’è un valore <- prende quel valore da SDO e lo mette in REDCap
-# NON tocca le celle già compilate in REDCap - lavora solo sui “buchi” - riga per riga (stesso paziente)
-
-
-redcap_common <- fill_from_sdo(redcap_common, sdo_common)
-
-# rimetti dentro
-redcapData[redcapData$prog_paz_neo %in% common_ids, ] <- redcap_common
-
-removeSDO <- which(sdoData$prog_paz_neo %in% redcapData$prog_paz_neo)
-
-sdoRemovedData <- sdoData[sdoData$prog_paz_neo %in% redcapData$prog_paz_neo, ]
-sdoMergeData   <- sdoData[!sdoData$prog_paz_neo %in% redcapData$prog_paz_neo, ]
+# Priorità a REDCap → togli da SDO quelli già presenti
+sdoMergeData <- sdoData[!(sdoData$prog_paz_neo %in% redcapData$prog_paz_neo), ]
 
 
 # STANDARDIZZAZIONE STRUTTURA DATI ----
@@ -156,5 +119,5 @@ eurocatData$numloc <- str_c(prefix, postfix_zero_padded)
 # OUTPUT ----
 
 
-write_csv2(eurocatData, file = paste0(exportDir, "/eurocatData.csv"))
+write_csv2(eurocatData, file = paste0(exportDir, "/eurocatData.csv"), na="")
 

@@ -168,4 +168,4 @@ redcapData$start_cov[is.na(redcapData$start_cov)] <- 99
 
 # OUT ----
 
-write_csv2(redcapData, file = paste0(exportDir, "/redcapData_stage_4_1.csv"))
+write_csv2(redcapData, file = paste0(exportDir, "/redcapData_stage_4_1.csv"), na="")
