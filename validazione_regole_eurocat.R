@@ -141,28 +141,22 @@ traduci_regola <- function(regola){
 
 valuta_regola <- function(regola, dataset){
   
-  if(is.na(regola) || regola == "") return(NULL)
+  expr <- rlang::parse_expr(regola)
   
-  viol <- tryCatch({
-    dataset %>%
-      filter(!!parse_expr(regola)) %>%
-      mutate(
-        warning = regola,
-        regola_tradotta = traduci_regola(regola)
-      ) %>%
-      select(data_source, numloc, warning, regola_tradotta)
-    
-  }, error = function(e){
-    message("❌ ERRORE REGOLA:")
-    message(regola)
-    message("Motivo: ", e$message)
-    return(NULL)
-  })
+  condizione <- rlang::eval_tidy(expr, data = dataset)
   
-  if(is.null(viol) || nrow(viol) == 0) return(NULL)
+  viol <- dataset[which(condizione), ] %>%
+    mutate(
+      warning = regola,
+      regola_tradotta = traduci_regola(regola)
+    ) %>%
+    select(data_source, numloc, warning, regola_tradotta)
+  
+  if(nrow(viol) == 0) return(NULL)
   
   return(viol)
 }
+
 # ============================================================
 # 5️⃣ APPLICAZIONE DI TUTTE LE REGOLE (SCEGLIERE IL DATASET)
 # ============================================================

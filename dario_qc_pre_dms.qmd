@@ -1620,6 +1620,7 @@ isnaMalfo1IsnaSyndromeTable %>%
 
 cat("\n\\newpage\n")
 ```
+
 ### faanom and sp_faanom
 
 **faanom**: 1 = Same 2 = Other 3 = Same and other 4 = No 9 = Not known
