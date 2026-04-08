@@ -56,18 +56,11 @@ sdoData    <- sdoData[!is.na(sdoData$prog_paz_neo), ]
 sdoMergeData <- sdoData[!(sdoData$prog_paz_neo %in% redcapData$prog_paz_neo), ]
 
 
-# STANDARDIZZAZIONE STRUTTURA DATI ----
+# -------- SPLIT CAMPI --------
 
+sdoMergeData$gestlength <- str_split_i(sdoMergeData$gestlength, "\\|", 1)
+sdoMergeData$weight     <- str_split_i(sdoMergeData$weight, "\\|", 1)
 
-redcapData <- standardize_types(redcapData, vars_numeric)
-sdoMergeData <- standardize_types(sdoMergeData, vars_numeric)
-
-
-# TRANSCODIFICA SDO E REDCAP ----
-
-
-sdoMergeData <- transcode_complete(sdoMergeData, eurocat_vars_list)
-redcapData   <- transcode_complete(redcapData, eurocat_vars_list)
 
 # HARMONIZE DATASET ----
 
@@ -80,6 +73,18 @@ for (v in date_vars) {
   sdoMergeData[[v]]  <- clean_date(sdoMergeData[[v]])
 }
 
+# ------STRUTTURA DATI ---------
+redcapData <- standardize_types(redcapData, vars_numeric)
+sdoMergeData <- standardize_types(sdoMergeData, vars_numeric)
+
+
+# TRANSCODIFICA SDO E REDCAP ----
+
+
+sdoMergeData <- transcode_complete(sdoMergeData, eurocat_vars_list)
+redcapData   <- transcode_complete(redcapData, eurocat_vars_list)
+
+
 # -------- DATA SOURCE --------
 
 redcapData$data_source <- "EDC"
@@ -89,10 +94,6 @@ sdoMergeData$chorvilsam    <- 9
 sdoMergeData$ultrason      <- 9
 sdoMergeData$data_source   <- "SDO"
 
-# -------- SPLIT CAMPI --------
-
-sdoMergeData$gestlength <- str_split_i(sdoMergeData$gestlength, "\\|", 1)
-sdoMergeData$weight     <- str_split_i(sdoMergeData$weight, "\\|", 1)
 
 # -------- ALLINEAMENTO COLONNE --------
 
@@ -103,6 +104,7 @@ sdoMergeData <- sdoMergeData[, eurocat_vars_list]
 
 
 eurocatData <- rbind(redcapData, sdoMergeData)
+
 
 
 # NUMLOC GENERATION ----

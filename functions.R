@@ -11,13 +11,12 @@ getPlaceFromBirthCenter = function(inKey, lookupTable, lookupKey){
 
 
 
-#transcodifica eurocat - stage 4 e 5
+#transcodifica eurocat - stage 4 e 5 ----
 
 transcode_complete <- function(df, eurocat_vars_list){
   
   missing_cols <- setdiff(eurocat_vars_list, names(df))
   
-  # aggiungo tutte le colonne mancanti come stringa vuota
   for(col in missing_cols){
     df[[col]] <- ""
   }
@@ -26,11 +25,51 @@ transcode_complete <- function(df, eurocat_vars_list){
   if("gestlength" %in% names(df)) df$gestlength[is.na(df$gestlength)] <- 99
   
   # DATE
-  if("datemo" %in% names(df))
-    df$datemo[is.na(df$datemo)] <- "xxxx/xx/xx"
+  df$datemo[
+    is.na(df$datemo) | trimws(df$datemo) == ""
+  ] <- "xxxx/xx/xx"
   
-  if("death_date" %in% names(df))
-    df$death_date[is.na(df$death_date)] <- "xxxx/xx/xx"
+  
+  if("death_date" %in% names(df)){
+    
+    # live birth → gestisci missing
+    df$death_date[
+      df$type == 1 & (is.na(df$death_date) | trimws(df$death_date) == "")
+    ] <- "3333/33/33"
+    
+    # non live birth → non applicabile
+    df$death_date[df$type != 1] <- ""
+  }
+  
+  
+  # -------- SURVIVAL EUROCAT --------
+  
+  if(all(c("type","death_date") %in% names(df))){
+    
+    surv <- df$survival
+    d    <- df$death_date
+    
+    # TYPE 2,3,4 → morti
+    surv[df$type %in% c(2,3,4)] <- 2
+    
+    # TYPE 9 → unknown
+    surv[df$type == 9] <- 9
+    
+    # TYPE 1
+    
+    # vivo a 1 anno
+    surv[df$type == 1 & d == "2222/22/22"] <- 1
+    
+    # morto (data reale o xxxx)
+    surv[df$type == 1 & 
+           !(d %in% c("2222/22/22","3333/33/33"))] <- 2
+    
+    # unknown
+    surv[df$type == 1 & d == "3333/33/33"] <- 9
+    
+    df$survival <- surv
+  }
+  
   
   # MALFO
   malfo_vars <- paste0("malfo", 1:8)
@@ -46,7 +85,7 @@ transcode_complete <- function(df, eurocat_vars_list){
     df[[v]][is.na(df[[v]])] <- ""
   }
   
-  # SIB (DEVONO RESTARE BLANK)
+  # SIB
   sib_vars <- c("sib1","sib2","sib3")
   for(v in intersect(sib_vars, names(df))){
     df[[v]][is.na(df[[v]])] <- ""
@@ -97,7 +136,7 @@ transcode_complete <- function(df, eurocat_vars_list){
     df[[v]][is.na(df[[v]])] <- ""
   }
   
-  # FIX SPECIFICO ILLDUR (9 = missing valido)
+  # FIX ILLDUR
   for(v in c("illdur1","illdur2")){
     if(v %in% names(df)){
       df[[v]] <- as.character(df[[v]])
@@ -111,7 +150,6 @@ transcode_complete <- function(df, eurocat_vars_list){
     }
   }
   
-  # ORDINA COLONNE
   df <- df[, eurocat_vars_list]
   
   return(df)

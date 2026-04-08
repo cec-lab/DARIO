@@ -16,7 +16,6 @@ regole <- c(
   "is.na(type)",
   "type == 4 & !(whendisc %in% c(6,9))",
   "type == 4 & presyn == 2",
-  "type == 4 & !(survival %in% c(1,3,9))",
   "type == 2 & gestlength < 20",
   "type == 1 & pm %in% c(1,2,4) & !(is.na(death_date) | death_date == '')",
   
@@ -24,8 +23,9 @@ regole <- c(
   "is.na(weight)",
   "is.na(gestlength)",
   
-  "firstpre %in% c(1,2) & !is.na(gestlength) & gestlength > 22",
-  "firstpre == 3 & !is.na(gestlength) & gestlength < 23",
+  "firstpre == 1 & !is.na(agedisc) & agedisc != 99 & agedisc >= 14",
+  "firstpre == 3 & !is.na(agedisc) & agedisc != 99 & agedisc < 22",
+  "firstpre == 2 & !is.na(agedisc) & agedisc != 99 & (agedisc < 14 | agedisc > 21)",
   
   "survival == 2 & (is.na(death_date) | death_date == '') & type == 1",
   "survival == 9 & (is.na(death_date) | death_date == '')",
@@ -69,15 +69,6 @@ regole <- c(
   "firsttri %in% c(2,9) & !(is.na(drugs4) | drugs4 == '')",
   "firsttri %in% c(2,9) & !(is.na(drugs5) | drugs5 == '')",
   "firsttri %in% c(2,9) & !(is.na(extra_drugs) | extra_drugs == '')",
-  
-  "premal1 == 1 & karyo == 3 & gentest == 3",
-  "premal2 == 1 & karyo == 3 & gentest == 3",
-  "premal3 == 1 & karyo == 3 & gentest == 3",
-  "premal4 == 1 & karyo == 3 & gentest == 3",
-  "premal5 == 1 & karyo == 3 & gentest == 3",
-  "premal6 == 1 & karyo == 3 & gentest == 3",
-  "premal7 == 1 & karyo == 3 & gentest == 3",
-  "premal8 == 1 & karyo == 3 & gentest == 3",
   
   "!(is.na(malfo1) | malfo1 == '') & (is.na(sp_malfo1) | sp_malfo1 == '')",
   "!(is.na(malfo2) | malfo2 == '') & (is.na(sp_malfo2) | sp_malfo2 == '')",

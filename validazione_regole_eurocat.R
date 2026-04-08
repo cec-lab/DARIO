@@ -21,6 +21,7 @@ source(paste0(baseDir,"/functions.R"))
 
 
 eurocatData_test_Luca <- read_csv2(paste0(exportDir, "/eurocatData.csv"))
+
 eurocatData_test_Luca   <- transcode_complete(eurocatData_test_Luca, eurocat_vars_list)
 colSums(is.na(eurocatData_test_Luca))
 

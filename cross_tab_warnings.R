@@ -1296,6 +1296,72 @@ sections <- list(
   s39 = list(title = "39) pm", data = w39)
 )
 
+add_section_html <- function(id, title, data, description){
+  
+  n <- nrow(data)
+  
+  # tabella HTML (solo se ci sono righe)
+  table_html <- if(n > 0){
+    tags$table(
+      border = 1,
+      style = "border-collapse: collapse; font-size:12px;",
+      
+      tags$thead(
+        tags$tr(
+          lapply(names(data), function(col){
+            tags$th(col, style="padding:4px; background:#f0f0f0;")
+          })
+        )
+      ),
+      
+      tags$tbody(
+        lapply(seq_len(n), function(i){
+          tags$tr(
+            lapply(data[i, ], function(x){
+              tags$td(as.character(x), style="padding:4px;")
+            })
+          )
+        })
+      )
+    )
+    
+  } else {
+    tags$p("Nessun record trovato", style="color:green;")
+  }
+  
+  # blocco sezione
+  tags$div(
+    id = id,
+    style = "margin-bottom:40px;",
+    
+    tags$h2(title),
+    
+    tags$p(
+      tags$b("Descrizione: "), description
+    ),
+    
+    tags$p(
+      tags$b("Totale casi: "), n
+    ),
+    
+    table_html,
+    
+    tags$hr()
+  )
+}
+
+index <- tags$div(
+  style = "position:fixed; left:0; top:0; width:250px; height:100%; overflow:auto; background:#f7f7f7; padding:10px;",
+  
+  tags$h3("Indice"),
+  
+  lapply(names(sections), function(id){
+    tags$p(
+      tags$a(href = paste0("#", id), sections[[id]]$title)
+    )
+  })
+)
+
 report_sections <- lapply(names(sections), function(id){
   
   sec <- sections[[id]]

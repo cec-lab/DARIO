@@ -28,8 +28,6 @@ redcapData$birth_date <- as.character(redcapData$birth_date)
 redcapData$datemo <- as.character(redcapData$datemo)
 redcapData$death_date <- as.character(redcapData$death_date)
 
-redcapData$datemo[is.na(redcapData$datemo)] <- "xxxx/xx/xx"
-redcapData$death_date[is.na(redcapData$death_date)] <- "xxxx/xx/xx"
 
 #MALFO
 redcapData$malfo1[is.na(redcapData$malfo1)] <- ""
