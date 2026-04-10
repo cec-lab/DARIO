@@ -49,10 +49,15 @@ for(i in 1:dim(redcapData)[1]){
 
 redcapData$weight <- cedapDataLinked$PESO
 redcapData$bmi <- round(cedapDataLinked$PESO_MADRE_PREGRAVIDICO/(cedapDataLinked$ALTEZZA_MADRE/100)^2,2)
-redcapData$totpreg <- (cedapDataLinked$NUMERO_ABORTI_SPONTANEI +
-                          cedapDataLinked$NUMERO_IVG +
-                          cedapDataLinked$NUMERO_NATI_VIVI +
-                          cedapDataLinked$NUMERO_NATI_MORTI)
+redcapData$totpreg <- rowSums(
+  cbind(
+    cedapDataLinked$NUMERO_ABORTI_SPONTANEI,
+    cedapDataLinked$NUMERO_IVG,
+    cedapDataLinked$NUMERO_NATI_VIVI,
+    cedapDataLinked$NUMERO_NATI_MORTI
+  ),
+  na.rm = TRUE
+)
 
 redcapData$amniocentesis <- cedapDataLinked$AMNIOCENTESI
 

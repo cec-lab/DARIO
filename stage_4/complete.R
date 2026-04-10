@@ -43,7 +43,13 @@ redcapData$nbrbaby[is.na(redcapData$nbrbaby)] <- 9
 redcapData$sex[is.na(redcapData$sex)] <- 9
 redcapData$type[is.na(redcapData$type)] <- 9
 redcapData$survival[is.na(redcapData$survival)] <- 9
-redcapData$totpreg[is.na(redcapData$totpreg)] <- 99
+redcapData$totpreg <- dplyr::case_when(
+  is.na(redcapData$totpreg) ~ "99",
+  redcapData$totpreg == 0 ~ "00",
+  redcapData$totpreg == 1 ~ "01",
+  redcapData$totpreg == 2 ~ "02",
+  redcapData$totpreg >= 3 ~ "03"
+)
 redcapData$whendisc[is.na(redcapData$whendisc)] <- 9
 redcapData$agedisc[is.na(redcapData$agedisc)] <- 99
 redcapData$condisc[is.na(redcapData$condisc)] <- 9

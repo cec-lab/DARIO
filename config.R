@@ -352,7 +352,7 @@ cedap_linked_vars <- c(
 
 vars_numeric <- c(
   "sex","type","survival",
-  "nbrbaby","nbrmalf","totpreg",
+  "nbrbaby","nbrmalf",
   "weight","gestlength",
   "agemo","bmi",
   "whendisc","agedisc","condisc",
