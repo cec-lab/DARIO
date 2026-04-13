@@ -43,7 +43,6 @@ regole <- c(
   "whendisc == 7 & survival == 1",
   "whendisc == 6 & condisc != 1",
   "whendisc == 7 & condisc != 2",
-  "whendisc == 6 & is.na(agedisc)",
   "whendisc == 6 & firstpre %in% c(8,9,10)",
   "whendisc == 7 & !(type %in% c(3,4))",
   
@@ -114,6 +113,11 @@ regole <- c(
   "(!is.na(moanom) & !(moanom %in% c(1,2,3,4,9)))",
   "(!is.na(faanom) & !(faanom %in% c(1,2,3,4,9)))",
   "(!is.na(nbrbaby) & !(nbrbaby %in% c(1:9)))",
-  "(!is.na(nbrmalf) & !(nbrmalf %in% c(1:6,9)))",
-  "(!is.na(firsttri) & !(firsttri %in% c(1,2,4,9)))"
-)
+  "!(is.na(nbrmalf) | nbrmalf == '') & !(nbrmalf %in% c(1:6,9))",
+  "(!is.na(firsttri) & !(firsttri %in% c(1,2,4,9)))",
+"whendisc == 6 & !(is.na(agedisc) | agedisc == 99)",
+"nbrbaby != 1 & !(is.na(nbrmalf) | nbrmalf == '')",
+"nbrbaby != 1 & !(is.na(sp_twin) | sp_twin == '')",
+"whendisc != 1 & !(premal1 %in% c(1) | premal2 %in% c(1) | premal3 %in% c(1) | premal4 %in% c(1) | premal5 %in% c(1) | premal6 %in% c(1) | premal7 %in% c(1) | premal8 %in% c(1))",
+"!is.na(sp_karyo) & grepl('xy', tolower(sp_karyo)) & sex != 2",
+"!is.na(sp_karyo) & grepl('xx', tolower(sp_karyo)) & sex != 1")

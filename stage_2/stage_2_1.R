@@ -47,6 +47,17 @@ for(i in 1:dim(redcapData)[1]){
 
 # TRANSCODE ----
 
+redcapData$socm <- ifelse(
+  !is.na(cedapDataLinked$CONDIZIONE_PROF_MADRE) &
+    cedapDataLinked$CONDIZIONE_PROF_MADRE %in% c(4,6),
+  8, 9
+)
+
+redcapData$socf <- ifelse(
+  !is.na(cedapDataLinked$CONDIZIONE_PROF_PADRE) &
+    cedapDataLinked$CONDIZIONE_PROF_PADRE %in% c(4,6),
+  8, 9
+)
 redcapData$weight <- cedapDataLinked$PESO
 redcapData$bmi <- round(cedapDataLinked$PESO_MADRE_PREGRAVIDICO/(cedapDataLinked$ALTEZZA_MADRE/100)^2,2)
 redcapData$totpreg <- rowSums(

@@ -29,69 +29,52 @@ transcode_complete <- function(df, eurocat_vars_list){
     is.na(df$datemo) | trimws(df$datemo) == ""
   ] <- "xxxx/xx/xx"
   
-  
   if("death_date" %in% names(df)){
     
-    # live birth → gestisci missing
     df$death_date[
       df$type == 1 & (is.na(df$death_date) | trimws(df$death_date) == "")
     ] <- "3333/33/33"
     
-    # non live birth → non applicabile
     df$death_date[df$type != 1] <- ""
   }
   
-  
   # -------- SURVIVAL EUROCAT --------
-  
   if(all(c("type","death_date") %in% names(df))){
     
     surv <- df$survival
     d    <- df$death_date
     
-    # TYPE 2,3,4 → morti
     surv[df$type %in% c(2,3,4)] <- 2
-    
-    # TYPE 9 → unknown
     surv[df$type == 9] <- 9
     
-    # TYPE 1
-    
-    # vivo a 1 anno
     surv[df$type == 1 & d == "2222/22/22"] <- 1
     
-    # morto (data reale o xxxx)
     surv[df$type == 1 & 
            !(d %in% c("2222/22/22","3333/33/33"))] <- 2
     
-    # unknown
     surv[df$type == 1 & d == "3333/33/33"] <- 9
     
     df$survival <- surv
   }
   
-  
   # MALFO
-  malfo_vars <- paste0("malfo", 1:8)
-  for(v in malfo_vars){
+  for(v in paste0("malfo", 1:8)){
     if(v %in% names(df)){
-      df[[v]][is.na(df[[v]])] <- ""
+      df[[v]][is.na(df[[v]]) | df[[v]] == 9 | df[[v]] == "9"] <- ""
     }
   }
   
   # STRINGHE sp_
-  sp_vars <- names(df)[grepl("^sp_", names(df))]
-  for(v in sp_vars){
-    df[[v]][is.na(df[[v]])] <- ""
+  for(v in names(df)[grepl("^sp_", names(df))]){
+    df[[v]][is.na(df[[v]]) | df[[v]] == 9 | df[[v]] == "9"] <- ""
   }
   
   # SIB
-  sib_vars <- c("sib1","sib2","sib3")
-  for(v in intersect(sib_vars, names(df))){
-    df[[v]][is.na(df[[v]])] <- ""
+  for(v in intersect(c("sib1","sib2","sib3"), names(df))){
+    df[[v]][is.na(df[[v]]) | df[[v]] == 9 | df[[v]] == "9"] <- ""
   }
   
-  # NUMERICI (1 cifra → 9)
+  # -------- NUMERICI (1 cifra → 9) --------
   vars_9 <- c(
     "nbrbaby","sex","type","survival","whendisc","condisc",
     "karyo","surgery","matdiab",
@@ -107,37 +90,44 @@ transcode_complete <- function(df, eurocat_vars_list){
     df[[v]][is.na(df[[v]])] <- 9
   }
   
-  #pm a 3 
+  # -------- MODIFICHE PERSONALIZZATE --------
+  
+  # pm → 3 (NA o 9)
   if("pm" %in% names(df)){
-    df$pm[is.na(df$pm)] <- 3
-    
-    # presyn
-    if("presyn" %in% names(df)){
-      df$presyn[is.na(df$presyn)] <- ""
+    df$pm[is.na(df$pm) | df$pm == 9] <- 3
+  }
+  
+  # presyn → ""
+  if("presyn" %in% names(df)){
+    df$presyn <- as.character(df$presyn)
+    df$presyn[is.na(df$presyn) | df$presyn == 9 | df$presyn == "9"] <- ""
+  }
+  
+  # premal → ""
+  for(v in paste0("premal",1:8)){
+    if(v %in% names(df)){
+      df[[v]] <- as.character(df[[v]])
+      df[[v]][is.na(df[[v]]) | df[[v]] == 9 | df[[v]] == "9"] <- ""
     }
-    
-    # premal
-    for(v in paste0("premal",1:8)){
-      if(v %in% names(df)){
-        df[[v]][is.na(df[[v]])] <- ""
-      }
-    }
-    
-    # omim (già in vars_char, ma forziamo sicurezza)
-    if("omim" %in% names(df)){
-      df$omim[is.na(df$omim)] <- ""
-    }
-    
-    #nbrmalf
-    if("nbrmalf" %in% names(df)){
-      df$nbrmalf[is.na(df$nbrmalf)] <- ""
-    }
-    
-    
-  # NUMERICI (2 cifre → 99)
+  }
+  
+  # omim → ""
+  if("omim" %in% names(df)){
+    df$omim <- as.character(df$omim)
+    df$omim[is.na(df$omim) | df$omim == 9 | df$omim == "9"] <- ""
+  }
+  
+  # nbrmalf → ""
+  if("nbrmalf" %in% names(df)){
+    df$nbrmalf <- as.character(df$nbrmalf)
+    df$nbrmalf[is.na(df$nbrmalf) | df$nbrmalf == 9 | df$nbrmalf == "9"] <- ""
+  }
+  
+  # -------- NUMERICI (2 cifre → 99) --------
   vars_99 <- c(
     "totpreg","agedisc","agefa","agemo",
-    "bmi","mo_smoking","mo_alcohol","start_cov", "pre_sa","pre_topfa","pre_live","pre_still"
+    "bmi","mo_smoking","mo_alcohol","start_cov",
+    "pre_sa","pre_topfa","pre_live","pre_still"
   )
   
   for(v in intersect(vars_99, names(df))){
@@ -167,8 +157,7 @@ transcode_complete <- function(df, eurocat_vars_list){
       df[[v]] <- as.character(df[[v]])
       
       df[[v]][
-        is.na(df[[v]]) | 
-          trimws(df[[v]]) %in% c("", "9")
+        is.na(df[[v]]) | trimws(df[[v]]) %in% c("", "9")
       ] <- "9"
       
       df[[v]] <- suppressWarnings(as.numeric(df[[v]]))
@@ -183,9 +172,17 @@ transcode_complete <- function(df, eurocat_vars_list){
 
 standardize_types <- function(df, vars_numeric){
   
+  # variabili che DEVONO restare character
+  vars_force_char <- c(
+    "nbrmalf",
+    "presyn",
+    paste0("premal",1:8),
+    "omim"
+  )
+  
+  vars_numeric <- setdiff(vars_numeric, vars_force_char)
   vars_numeric <- intersect(vars_numeric, names(df))
   
-  # separo numeric e non numeric
   vars_char <- setdiff(names(df), vars_numeric)
   
   df <- df %>%
