@@ -93,13 +93,11 @@ transcode_complete <- function(df, eurocat_vars_list){
   
   # NUMERICI (1 cifra → 9)
   vars_9 <- c(
-    "nbrbaby","nbrmalf","sex","type","survival","whendisc","condisc",
-    "karyo","surgery","pm","presyn","matdiab",
-    paste0("premal",1:8),
+    "nbrbaby","sex","type","survival","whendisc","condisc",
+    "karyo","surgery","matdiab",
     "socf","cov_severity","consang","sibanom",
     "moanom","faanom","matedu","socm",
     "amniocentesis","chorvilsam","ultrason",
-    "pre_sa","pre_topfa","pre_live","pre_still",
     "inf_cov_test","imm_cov_test","oth_cov_test",
     "firstpre","firsttri","assconcept","migrant",
     "folic_g14","extra_er_resmo","prevsib","cedap_linked","cod_pres","gentest"
@@ -109,10 +107,37 @@ transcode_complete <- function(df, eurocat_vars_list){
     df[[v]][is.na(df[[v]])] <- 9
   }
   
+  #pm a 3 
+  if("pm" %in% names(df)){
+    df$pm[is.na(df$pm)] <- 3
+    
+    # presyn
+    if("presyn" %in% names(df)){
+      df$presyn[is.na(df$presyn)] <- ""
+    }
+    
+    # premal
+    for(v in paste0("premal",1:8)){
+      if(v %in% names(df)){
+        df[[v]][is.na(df[[v]])] <- ""
+      }
+    }
+    
+    # omim (già in vars_char, ma forziamo sicurezza)
+    if("omim" %in% names(df)){
+      df$omim[is.na(df$omim)] <- ""
+    }
+    
+    #nbrmalf
+    if("nbrmalf" %in% names(df)){
+      df$nbrmalf[is.na(df$nbrmalf)] <- ""
+    }
+    
+    
   # NUMERICI (2 cifre → 99)
   vars_99 <- c(
     "totpreg","agedisc","agefa","agemo",
-    "bmi","mo_smoking","mo_alcohol","start_cov"
+    "bmi","mo_smoking","mo_alcohol","start_cov", "pre_sa","pre_topfa","pre_live","pre_still"
   )
   
   for(v in intersect(vars_99, names(df))){
