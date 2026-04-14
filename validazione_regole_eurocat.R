@@ -232,17 +232,17 @@ output_dir <- exportDir
 
 write_excel_csv2(
   warnings_df,
-  file.path(output_dir, "warnings_df_eurocatData_test_Luca2.csv")
+  file.path(output_dir, "warnings_df.csv")
 )
 
 write_excel_csv2(
   warnings_freq,
-  file.path(output_dir, "warnings_frequenze_eurocatData_test_Luca2.csv")
+  file.path(output_dir, "warnings_frequenze.csv")
 )
 
 write_excel_csv2(
   warnings_grouped,
-  file.path(output_dir, "warnings_raggruppati_per_numloc_eurocatData_test_Luca2.csv")
+  file.path(output_dir, "warnings_raggruppati_per_numloc.csv")
 )
 
 cat("✔ File salvati in:", output_dir)

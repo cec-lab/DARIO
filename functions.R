@@ -131,7 +131,7 @@ transcode_complete <- function(df, eurocat_vars_list){
   )
   
   for(v in intersect(vars_99, names(df))){
-    df[[v]][is.na(df[[v]])] <- 99
+    df[[v]][is.na(df[[v]]) | df[[v]] == 9] <- 99
   }
   
   # MOTHER
@@ -148,7 +148,8 @@ transcode_complete <- function(df, eurocat_vars_list){
   )
   
   for(v in intersect(vars_char, names(df))){
-    df[[v]][is.na(df[[v]])] <- ""
+    df[[v]] <- as.character(df[[v]])
+    df[[v]][is.na(df[[v]]) | df[[v]] == 9 | df[[v]] == "9"] <- ""
   }
   
   # FIX ILLDUR
