@@ -168,7 +168,24 @@ transcode_complete <- function(df, eurocat_vars_list){
   df <- df[, eurocat_vars_list]
   
   return(df)
+  
+  # -------- FINAL NA CLEAN --------
+  
+  for (col in names(df)) {
+    
+    if (is.numeric(df[[col]])) {
+      # scegli default coerente
+      df[[col]][is.na(df[[col]])] <- 9
+      
+    } else {
+      df[[col]] <- as.character(df[[col]])
+      df[[col]][is.na(df[[col]]) | trimws(df[[col]]) == ""] <- ""
+    }
+  }
 }
+
+
+
 
 
 standardize_types <- function(df, vars_numeric){
