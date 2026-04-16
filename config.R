@@ -46,10 +46,10 @@ Year = 2023
 
 ## Files ----
 
-rcFileName <- "redcap_test.csv"                                #messo il dataset di test creato con script: create_dataset_test_algo.R
+rcFileName <- "redcap_test.csv"                                #mettere il dataset di test creato con script: create_dataset_test_algo.R
 rcRFileName <- "preprocess_edc.r"
 cedapFileName <- "cedap_plus_2023.csv"
-sdoFileName <- "sdo_stage_11b_clinical_rev_export_final.csv"   #cambiare con quelli veri
+sdoFileName <- "sdo_stage_11b_clinical_rev_export_final.csv"   
 sdoFileNameMerge <- "sdo_stage12_transcode_export.csv"         #cambiare con quelli veri
 
 ## stage_2 variables list ----
@@ -358,8 +358,6 @@ vars_numeric <- c(
   "agemo","bmi",
   "whendisc","agedisc","condisc",
   "firstpre","pm","presyn",
-  "premal1","premal2","premal3","premal4",
-  "premal5","premal6","premal7","premal8",
   "cov_severity","consang","sibanom",
   "moanom","faanom","matedu","socm",
   "amniocentesis","chorvilsam","ultrason",

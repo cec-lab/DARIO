@@ -39,15 +39,17 @@ source(paste0(baseDir,"/tables/regole_qc.R"))
 # ============================================================
 
 vars_numeric <- c(
-  "sex","nbrbaby","nbrmalf","type","civreg","survival",
-  "agemo","bmi","totpreg","whendisc","condisc","agedisc",
-  "firstpre","pm","presyn","premal1","premal2","premal3",
-  "premal4","premal5","premal6","premal7","premal8"
+  "sex","nbrbaby","type","civreg","survival",
+  "agemo","bmi","whendisc","condisc","agedisc",
+  "firstpre","pm"
 )
 
 vars_numeric <- intersect(vars_numeric, names(eurocatData_test_Luca))
 eurocatData_test_Luca <- eurocatData_test_Luca %>%
-  mutate(across(all_of(vars_numeric), as.numeric))
+  mutate(across(
+    all_of(vars_numeric),
+    ~as.numeric(na_if(trimws(.x), ""))
+  ))
 
 # ============================================================
 # 3️⃣ FUNZIONE TRADUZIONE REGOLA IN ITALIANO

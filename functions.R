@@ -83,7 +83,7 @@ transcode_complete <- function(df, eurocat_vars_list){
     "amniocentesis","chorvilsam","ultrason",
     "inf_cov_test","imm_cov_test","oth_cov_test",
     "firstpre","firsttri","assconcept","migrant",
-    "folic_g14","extra_er_resmo","prevsib","cedap_linked","cod_pres","gentest"
+    "folic_g14","extra_er_resmo","prevsib","cod_pres","gentest"
   )
   
   for(v in intersect(vars_9, names(df))){
