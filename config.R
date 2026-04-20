@@ -46,11 +46,11 @@ Year = 2023
 
 ## Files ----
 
-rcFileName <- "redcap_test.csv"                                #mettere il dataset di test creato con script: create_dataset_test_algo.R
+rcFileName <- "redcap_test_data.csv"                                #mettere il dataset di test creato con script: create_dataset_test_algo.R
 rcRFileName <- "preprocess_edc.r"
 cedapFileName <- "cedap_plus_2023.csv"
 sdoFileName <- "sdo_stage_11b_clinical_rev_export_final.csv"   
-sdoFileNameMerge <- "sdo_stage12_transcode_export.csv"         #cambiare con quelli veri
+sdoFileNameMerge <- "sdo_stage12_transcode_export.csv"        
 
 ## stage_2 variables list ----
 
