@@ -8,10 +8,10 @@ regole <- c(
   "sex == 9 & (type %in% c(1,2))",
   "sex == 9 & !(pm %in% c(3,4,9))",
   
-  "nbrbaby > 1 & nbrbaby != 8 & is.na(nbrmalf)",
-  "nbrbaby > 1 & nbrbaby != 8 & nbrmalf == 9",
+  "nbrbaby > 1 & nbrbaby != 9 & is.na(nbrmalf)",
+  "nbrbaby > 1 & nbrbaby != 9 & nbrmalf == 9",
   "nbrbaby > 1 & nbrbaby < 8 & nbrmalf > 0 & nbrmalf < 9 & nbrmalf > nbrbaby",
-  "nbrbaby >= 2 & (is.na(sp_twin) | sp_twin == '')",
+  "nbrbaby >= 2 & nbrbaby != 9 & (is.na(sp_twin) | sp_twin == '')",
   
   "is.na(type)",
   "type == 4 & !(whendisc %in% c(6,9))",
