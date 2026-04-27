@@ -38,6 +38,8 @@ vignettes/*.pdf
 # Temporary files created by R markdown
 *.utf8.md
 *.knit.md
+*.pdf
+*.html
 
 # R Environment Variables
 .Renviron
@@ -53,4 +55,3 @@ rsconnect/
 
 # Export dir
 export/
-codice/SARA/sdo/sdo_1yfup_2023.csv
