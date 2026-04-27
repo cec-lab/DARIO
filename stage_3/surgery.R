@@ -4,7 +4,9 @@ graphics.off()
 
 # SOURCE CONFIGURATION FILE ----
 
-source("/home/imer/works/DARIO/config.R")
+baseDir=getwd()
+source(paste0(baseDir,"/config.R"), echo = T)
+source(paste0(baseDir,"/functions.R"), echo = T)
 
 # SET WORKING DIRECTORY ----
 
@@ -14,7 +16,9 @@ setwd(baseDir)
 
 redcapData <- read_csv2(paste0(exportDir, "/redcapData_stage_2_1.csv"))
 
-sdoData <- read_excel(paste0(sdoDir, "/", sdoFileName))
+sdoData <- read_csv2(file.path(sdoDir, sdoFileName))
+
+sdoData$PROG_PAZ <- as.character(sdoData$PROG_PAZ)
 
 # LINKAGE SURGERY ----
 

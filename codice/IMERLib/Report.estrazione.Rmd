@@ -1,0 +1,64 @@
+---
+title: "Rapporto estrazione dati"
+author: "Registro IMER"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+if(extType=="Q"){
+  strInfo=paste0("Sono stati ricercati i seguenti codici ICD10 di malformazione: ",
+                 "\n", codes)
+}
+if(extType=="R"){
+  strInfo=paste0("Sono stati ricercati i seguenti codici di residenza (provincia, comune): ",
+                 "\n", pcodes, "/", ccodes)
+}
+
+```
+
+## Descrizione
+
+Database: `r dbName`
+
+Periodo di osservazione: `r SY` - `r EY`
+
+`r strInfo`
+
+Sono stati identificati `r dim(selected.cases)[1]` casi che rappresentano il `r perc.malf.tot`% dei casi totali (n=`r dim(ImerFilterdByYear)[1]`) registrati nel periodo di osservazione.
+
+## Casi selezionati
+
+```{r , echo=FALSE}
+rmarkdown::paged_table(selected.cases[, c(ICDRange)], options = NULL)
+```
+
+## Conteggio codici ICD10
+
+```{r , echo=FALSE}
+rmarkdown::paged_table(dc.counts, options = NULL)
+```
+
+## Numero di casi per anno
+
+Il numero mediano di casi per anno è `r median(dc.counts.byYear$n) `
+
+```{r plotCasiPerAnno, echo=FALSE}
+p
+```
+
+## Casi aggregati per chiave imer
+
+```{r , echo=FALSE}
+
+gt_tbl<-gt(data.frame(Variabile=row.names(tabImerKey), tabImerKey))
+gt_tbl
+
+```
+
+## Informazioni sulla sessione di lavoro
+
+```{r , echo=FALSE}
+sessionInfo()
+```

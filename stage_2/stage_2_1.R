@@ -4,9 +4,9 @@ graphics.off()
 
 # SOURCE CONFIGURATION FILE ----
 
-source("/home/imer/works/DARIO/config.R")
-
-source("/home/imer/works/DARIO/functions.R")
+baseDir=getwd()
+source(paste0(baseDir,"/config.R"), echo = T)
+source(paste0(baseDir,"/functions.R"), echo = T)
 
 # SET WORKING DIRECTORY ----
 
@@ -14,11 +14,10 @@ setwd(baseDir)
 
 # DATA LOAD ----
 
-redcapData_stege_1_1_revised <- read_csv2(paste0(exportDir, "/redcapData_stege_1_1_revised_b.csv"))
-View(redcapData_stege_1_1_revised)
+redcapData_stage_1_1_revised <- read_csv2(paste0(exportDir, "/redcapData_stage_1_1_revised.csv"))
 
-redcapData <- redcapData_stege_1_1_revised[, stage_2_vars_list]
-rm(redcapData_stege_1_1_revised)
+redcapData <- redcapData_stage_1_1_revised |> select(any_of(stage_2_vars_list))
+rm(redcapData_stage_1_1_revised)
 
 centriImer <- read_csv2(paste0(tablesDir, "/centri_imer.csv"))
 centriIMERlookup <- setNames(centriImer$Centro_IMER, centriImer$Codice)
@@ -29,7 +28,12 @@ centriIMERlookup <- setNames(centriImer$Centro_IMER, centriImer$Codice)
 cedapData <- read_csv2(paste0(cedapDir, "/", cedapFileName))
 cedapData <- cedapData[, cedap_linked_vars]
 
-cedapDataLinked <- data.frame(matrix(NA, nrow = dim(redcapData)[1], ncol = dim(cedapData)[2]))
+cedapDataLinked <- data.frame(
+  matrix(NA, 
+         nrow = nrow(redcapData), 
+         ncol = length(cedap_linked_vars))
+)
+
 colnames(cedapDataLinked) <- cedap_linked_vars
 cedapDataLinked$metodi_PMA <- 0
 
@@ -43,12 +47,28 @@ for(i in 1:dim(redcapData)[1]){
 
 # TRANSCODE ----
 
+redcapData$socm <- ifelse(
+  !is.na(cedapDataLinked$CONDIZIONE_PROF_MADRE) &
+    cedapDataLinked$CONDIZIONE_PROF_MADRE %in% c(4,6),
+  8, 9
+)
+
+redcapData$socf <- ifelse(
+  !is.na(cedapDataLinked$CONDIZIONE_PROF_PADRE) &
+    cedapDataLinked$CONDIZIONE_PROF_PADRE %in% c(4,6),
+  8, 9
+)
 redcapData$weight <- cedapDataLinked$PESO
 redcapData$bmi <- round(cedapDataLinked$PESO_MADRE_PREGRAVIDICO/(cedapDataLinked$ALTEZZA_MADRE/100)^2,2)
-redcapData$totpreg <- (cedapDataLinked$NUMERO_ABORTI_SPONTANEI +
-                          cedapDataLinked$NUMERO_IVG +
-                          cedapDataLinked$NUMERO_NATI_VIVI +
-                          cedapDataLinked$NUMERO_NATI_MORTI)
+redcapData$totpreg <- rowSums(
+  cbind(
+    cedapDataLinked$NUMERO_ABORTI_SPONTANEI,
+    cedapDataLinked$NUMERO_IVG,
+    cedapDataLinked$NUMERO_NATI_VIVI,
+    cedapDataLinked$NUMERO_NATI_MORTI
+  ),
+  na.rm = TRUE
+)
 
 redcapData$amniocentesis <- cedapDataLinked$AMNIOCENTESI
 
@@ -60,9 +80,9 @@ redcapData$prog_paz_neo <- cedapDataLinked$prog_paz_neo
 
 redcapData$prog_paz_m <- cedapDataLinked$prog_paz_m
 
-redcapData$cod_pres <- redcapData$birthCenter
+redcapData$cod_pres <- redcapData$centre
 
-redcapData$place <- centriIMERlookup[as.character(redcapData$birthCenter)]
+redcapData$place <- centriIMERlookup[as.character(redcapData$centre)]
 
 redcapData$mo_smoking <- cedapDataLinked$ABITUDINE_AL_FUMO
 
@@ -87,51 +107,31 @@ redcapData$assconcept <- recode(cedapDataLinked$metodi_PMA,
                                 .missing = "9") 
 
 
-redcapData$syndrome <- str_replace(str_split_i(redcapData$syndrome.factor, "\\|", 2), "\\.", "")
-redcapData$sp_syndrome <- str_split_i(redcapData$syndrome.factor, "\\|", 3)
-redcapData$sp_syndrome <- ifelse(!is.na(redcapData$syndrome_desc_detail), 
-                                 paste(redcapData$sp_syndrome, redcapData$syndrome_desc_detail), redcapData$sp_syndrome)
+# SYNDROME
+if("syndrome.factor" %in% names(redcapData)){
+  
+  res <- parse_pipe(redcapData$syndrome.factor)
+  
+  redcapData$syndrome <- res$code
+  redcapData$sp_syndrome <- res$desc
+}
 
-redcapData$malfo1 <- str_replace(str_split_i(redcapData$malfo1.factor, "\\|", 2), "\\.", "")
-redcapData$sp_malfo1 <- str_split_i(redcapData$malfo1.factor, "\\|", 3)
-redcapData$sp_malfo1 <- ifelse(!is.na(redcapData$malfo1_desc_detail), 
-                                 paste(redcapData$sp_malfo1, redcapData$malfo1_desc_detail), redcapData$sp_malfo1)
 
-redcapData$malfo2 <- str_replace(str_split_i(redcapData$malfo2.factor, "\\|", 2), "\\.", "")
-redcapData$sp_malfo2 <- str_split_i(redcapData$malfo2.factor, "\\|", 3)
-redcapData$sp_malfo2 <- ifelse(!is.na(redcapData$malfo2_desc_detail), 
-                               paste(redcapData$sp_malfo2, redcapData$malfo2_desc_detail), redcapData$sp_malfo2)
-
-redcapData$malfo3 <- str_replace(str_split_i(redcapData$malfo3.factor, "\\|", 2), "\\.", "")
-redcapData$sp_malfo3 <- str_split_i(redcapData$malfo3.factor, "\\|", 3)
-redcapData$sp_malfo3 <- ifelse(!is.na(redcapData$malfo3_desc_detail), 
-                               paste(redcapData$sp_malfo3, redcapData$malfo3_desc_detail), redcapData$sp_malfo3)
-
-redcapData$malfo4 <- str_replace(str_split_i(redcapData$malfo4.factor, "\\|", 2), "\\.", "")
-redcapData$sp_malfo4 <- str_split_i(redcapData$malfo4.factor, "\\|", 3)
-redcapData$sp_malfo4 <- ifelse(!is.na(redcapData$malfo4_desc_detail), 
-                               paste(redcapData$sp_malfo4, redcapData$malfo4_desc_detail), redcapData$sp_malfo4)
-
-redcapData$malfo5 <- str_replace(str_split_i(redcapData$malfo5.factor, "\\|", 2), "\\.", "")
-redcapData$sp_malfo5 <- str_split_i(redcapData$malfo5.factor, "\\|", 3)
-redcapData$sp_malfo5 <- ifelse(!is.na(redcapData$malfo5_desc_detail), 
-                               paste(redcapData$sp_malfo5, redcapData$malfo5_desc_detail), redcapData$sp_malfo5)
-
-redcapData$malfo6 <- str_replace(str_split_i(redcapData$malfo6.factor, "\\|", 2), "\\.", "")
-redcapData$sp_malfo6 <- str_split_i(redcapData$malfo6.factor, "\\|", 3)
-redcapData$sp_malfo6 <- ifelse(!is.na(redcapData$malfo6_desc_detail), 
-                               paste(redcapData$sp_malfo6, redcapData$malfo6_desc_detail), redcapData$sp_malfo6)
-
-redcapData$malfo7 <- str_replace(str_split_i(redcapData$malfo7.factor, "\\|", 2), "\\.", "")
-redcapData$sp_malfo7 <- str_split_i(redcapData$malfo7.factor, "\\|", 3)
-redcapData$sp_malfo7 <- ifelse(!is.na(redcapData$malfo7_desc_detail), 
-                               paste(redcapData$sp_malfo7, redcapData$malfo7_desc_detail), redcapData$sp_malfo7)
-
-redcapData$malfo8 <- str_replace(str_split_i(redcapData$malfo8.factor, "\\|", 2), "\\.", "")
-redcapData$sp_malfo8 <- str_split_i(redcapData$malfo8.factor, "\\|", 3)
-redcapData$sp_malfo8 <- ifelse(!is.na(redcapData$malfo8_desc_detail), 
-                               paste(redcapData$sp_malfo8, redcapData$malfo8_desc_detail), redcapData$sp_malfo8)
-
+#MALFO
+for(i in 1:8){
+  
+  var_factor <- paste0("malfo", i, ".factor")
+  var <- paste0("malfo", i)
+  sp_var <- paste0("sp_malfo", i)
+  
+  if(var_factor %in% names(redcapData)){
+    
+    res <- parse_pipe(redcapData[[var_factor]])
+    
+    redcapData[[var]] <- res$code
+    redcapData[[sp_var]] <- res$desc
+  }
+}
 
 redcapData$illbef1 <- ifelse(!is.na(redcapData$icd10illbef1), redcapData$icd10illbef1, redcapData$illbef1)
 
@@ -144,6 +144,7 @@ redcapData$illdur2 <- ifelse(!is.na(redcapData$icd10illdur2), redcapData$icd10il
 
 # OUTPUT ----
 
+redcapData$data_source <- "EDC"
 eurocatData <- redcapData[, eurocat_vars_list]
 
 write_csv2(eurocatData, file = paste0(exportDir, "/redcapData_stage_2_1.csv"))

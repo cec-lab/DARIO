@@ -15,58 +15,40 @@ library(rlang)
 # ===============================
 # DATA IMPORT
 # ===============================
+baseDir= getwd()
+source(paste0(baseDir,"/config.R"))
+source(paste0(baseDir,"/functions.R"))
 
-root <- "/Users/luca/Library/CloudStorage/GoogleDrive-cmmlcu@unife.it/Drive condivisi/IMER/documenti/missing_outliers_DMS"
-cat("Root directory:", root, "\n")
-list.files(root)
 
-eurocatData <- read_delim("~/Google Drive/Drive condivisi/IMER/documenti/missing_outliers_DMS/eurocatData_merged.csv", 
-                          delim = ";", escape_double = FALSE, trim_ws = TRUE)
+eurocatData_test_Luca <- read_csv2(paste0(exportDir, "/eurocatData.csv"))
 
-DMS_clean   <- read_delim(paste0(root, "/DMS_export_2010_2023.csv"),
-                          delim = ";", escape_double = FALSE, trim_ws = TRUE)
-
-eurocatData_test_Luca <- read_csv2("~/Google Drive/Drive condivisi/IMER/database/qc/DARIO/indir/eurocatData_test_Luca2.csv",  col_types = cols(
-  birth_date = col_character(),
-  death_date = col_character(),
-  datemo     = col_character()))
+eurocatData_test_Luca   <- transcode_complete(eurocatData_test_Luca, eurocat_vars_list)
+colSums(is.na(eurocatData_test_Luca))
 
 eurocatData_test_Luca <- eurocatData_test_Luca %>%
   rename(residmo = resmo)
 
 # ============================================================
-# 1️⃣ CARICAMENTO REGOLE
+# 1️⃣ CARICAMENTO WARNINGS
 # ============================================================
 
-CODING_QC_Eurocat <- read_csv2(
-  "~/Google Drive/Drive condivisi/IMER/documenti/missing_outliers_DMS/CODING_QC_Eurocat.csv",
-  locale = locale(encoding = "UTF-8")
-)
-
-CODING_QC_Eurocat <- CODING_QC_Eurocat %>% tibble::as_tibble()
-
-# Se non esiste TestoWarning lo creiamo
-if(!"TestoWarning" %in% names(CODING_QC_Eurocat)){
-  CODING_QC_Eurocat$TestoWarning <- CODING_QC_Eurocat$REGOLA
-}
+source(paste0(baseDir,"/tables/regole_qc.R"))
 
 # ============================================================
 # 2️⃣ CONVERSIONE AUTOMATICA FACTOR NUMERICI
 # ============================================================
 
 vars_numeric <- c(
-  "sex","nbrbaby","nbrmalf","type","civreg","survival",
-  "agemo","bmi","totpreg","whendisc","condisc","agedisc",
-  "firstpre","pm","presyn","premal1","premal2","premal3",
-  "premal4","premal5","premal6","premal7","premal8"
+  "sex","nbrbaby","type","civreg","survival",
+  "agemo","bmi","whendisc","condisc","agedisc",
+  "firstpre","pm"
 )
 
-vars_numeric <- intersect(vars_numeric, names(DMS_clean))
-
-DMS_clean <- DMS_clean %>%
+vars_numeric <- intersect(vars_numeric, names(eurocatData_test_Luca))
+eurocatData_test_Luca <- eurocatData_test_Luca %>%
   mutate(across(
     all_of(vars_numeric),
-    ~ suppressWarnings(as.numeric(as.character(.)))
+    ~as.numeric(na_if(trimws(.x), ""))
   ))
 
 # ============================================================
@@ -81,11 +63,29 @@ traduci_regola <- function(regola){
   
   testo <- regola
   
-  # Pulizia doppie virgolette
+  # Pulizia
   testo <- gsub('""', '"', testo, fixed = TRUE)
   
   # ===============================
-  # grepl("^Q56", malfo1)
+  # MISSING (pattern completo)
+  # ===============================
+  
+  # (is.na(x) | x == "")
+  testo <- gsub(
+    "\\(is.na\\(([^)]+)\\) \\| \\1 == ''\\)",
+    "\\1 È VUOTO",
+    testo
+  )
+  
+  # !(is.na(x) | x == "")
+  testo <- gsub(
+    "!\\(is.na\\(([^)]+)\\) \\| \\1 == ''\\)",
+    "\\1 È COMPILATO",
+    testo
+  )
+  
+  # ===============================
+  # grepl
   # ===============================
   testo <- gsub(
     'grepl\\("\\^([A-Z0-9]+)",\\s*([a-zA-Z0-9_]+)\\)',
@@ -94,25 +94,20 @@ traduci_regola <- function(regola){
   )
   
   # ===============================
-  # is.na
+  # is.na residui
   # ===============================
-  testo <- gsub("!is.na\\(([^)]+)\\)", "\\1 NON È NA", testo)
+  testo <- gsub("!is.na\\(([^)]+)\\)", "\\1 È VALORIZZATO", testo)
   testo <- gsub("is.na\\(([^)]+)\\)", "\\1 È NA", testo)
   
   # ===============================
-  # %in% c(...)
+  # %in%
   # ===============================
-  testo <- gsub("%in% c\\(", " È ", testo)
-  testo <- gsub("!= c\\(", " NON È ", testo)
-  
-  # sostituzione virgole SOLO dopo %in%
+  testo <- gsub("%in% c\\(", " È TRA ", testo)
+  testo <- gsub("c\\(", "", testo)
   testo <- gsub(",", " O ", testo)
   
-  # rimuove c(
-  testo <- gsub("c\\(", "", testo)
-  
   # ===============================
-  # Negazione parentesi
+  # Negazione
   # ===============================
   testo <- gsub("!\\(", "NON (", testo)
   
@@ -132,54 +127,71 @@ traduci_regola <- function(regola){
   testo <- gsub(">", " MAGGIORE DI ", testo)
   testo <- gsub("<", " MINORE DI ", testo)
   
+  # ===============================
+  # Pulizia finale
+  # ===============================
   testo <- gsub("\\)", "", testo)
   testo <- gsub("\\s+", " ", testo)
   testo <- trimws(testo)
   
   return(testo)
 }
+
 # ============================================================
 # 4️⃣ FUNZIONE CHE APPLICA UNA REGOLA
 # ============================================================
 
-valuta_regola <- function(regola, messaggio, dataset){
+valuta_regola <- function(regola, dataset){
   
-  if(is.na(regola) || regola == "") return(NULL)
+  expr <- rlang::parse_expr(regola)
   
-  regola_trad <- traduci_regola(regola)
+  condizione <- rlang::eval_tidy(expr, data = dataset)
   
-  viol <- tryCatch({
-    dataset %>%
-      filter(!!parse_expr(regola)) %>%
-      select(data_source, numloc)
-  }, error = function(e){
-    message("Errore nella regola:")
-    message(regola)
-    message("Motivo: ", e$message)
-    return(NULL)
-  })
-  
-  if(is.null(viol) || nrow(viol) == 0) return(NULL)
-  
-  viol %>%
+  viol <- dataset[which(condizione), ] %>%
     mutate(
-      warning = messaggio,
-      regola_tradotta = regola_trad
+      warning = regola,
+      regola_tradotta = traduci_regola(regola)
     ) %>%
     select(data_source, numloc, warning, regola_tradotta)
+  
+  if(nrow(viol) == 0) return(NULL)
+  
+  return(viol)
 }
+
 # ============================================================
 # 5️⃣ APPLICAZIONE DI TUTTE LE REGOLE (SCEGLIERE IL DATASET)
 # ============================================================
+# ============================================================
+# DEBUG VALIDAZIONE REGOLE
+# ============================================================
 
-warnings_list <- purrr::map2(
-  CODING_QC_Eurocat$REGOLA,
-  CODING_QC_Eurocat$TestoWarning,
-  ~valuta_regola(.x, .y, eurocatData_test_Luca)                       #CAMBIARE DATASET
+check_regole <- function(regole){
+  
+  for(i in seq_along(regole)){
+    
+    res <- try(parse_expr(regole[i]), silent = TRUE)
+    
+    if(inherits(res, "try-error")){
+      cat("\n❌ ERRORE REGOLA:", i, "\n")
+      cat(regole[i], "\n")
+    }
+  }
+}
+
+check_regole(regole)
+
+warnings_list <- purrr::map(
+  regole,
+  ~valuta_regola(.x, eurocatData_test_Luca)
 )
 
 
 warnings_df <- bind_rows(warnings_list)
+
+if(nrow(warnings_df) == 0){
+  cat("✔ Nessun warning trovato\n")
+} 
 
 # ============================================================
 # 6️⃣ FREQUENZE WARNING (ORDINE DECRESCENTE)
@@ -213,7 +225,7 @@ warnings_grouped <- warnings_df %>%
 # 8️⃣ CREAZIONE CARTELLA OUTPUT
 # ============================================================
 
-output_dir <- "~/Google Drive/Drive condivisi/IMER/database/qc/DARIO/outdir"
+output_dir <- exportDir
 
 
 # ============================================================
@@ -222,17 +234,17 @@ output_dir <- "~/Google Drive/Drive condivisi/IMER/database/qc/DARIO/outdir"
 
 write_excel_csv2(
   warnings_df,
-  file.path(output_dir, "warnings_df_eurocatData_test_Luca2.csv")
+  file.path(output_dir, "warnings_df.csv")
 )
 
 write_excel_csv2(
   warnings_freq,
-  file.path(output_dir, "warnings_frequenze_eurocatData_test_Luca2.csv")
+  file.path(output_dir, "warnings_frequenze.csv")
 )
 
 write_excel_csv2(
   warnings_grouped,
-  file.path(output_dir, "warnings_raggruppati_per_numloc_eurocatData_test_Luca2.csv")
+  file.path(output_dir, "warnings_raggruppati_per_numloc.csv")
 )
 
 cat("✔ File salvati in:", output_dir)

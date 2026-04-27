@@ -1,0 +1,14 @@
+it\unife\cec\sdomanager\service\CsvEdcService.class
+it\unife\cec\sdomanager\App.class
+it\unife\cec\sdomanager\controller\MainAppController.class
+it\unife\cec\sdomanager\model\Sdo.class
+it\unife\cec\sdomanager\dao\EdcDAO.class
+it\unife\cec\sdomanager\dao\SdoDAO.class
+it\unife\cec\sdomanager\service\CsvSdoService.class
+it\unife\cec\sdomanager\controller\MainAppController$2.class
+it\unife\cec\sdomanager\controller\DialogsPopUp.class
+module-info.class
+it\unife\cec\sdomanager\database\DatabaseConnection.class
+it\unife\cec\sdomanager\controller\MainAppController$1.class
+it\unife\cec\sdomanager\database\DbOperations.class
+it\unife\cec\sdomanager\model\Edc.class
