@@ -22,6 +22,7 @@ redcapData <- read_csv2(paste0(exportDir, "/redcapData_stage_3_1.csv"))
 
 redcapData$weight[is.na(redcapData$weight)] <- 9999
 redcapData$gestlength[is.na(redcapData$gestlength)] <- 99
+redcapData$place[is.na(redcapData$place)] <- 999
 
 # DATE (formato EUROCAT yyyy/mm/xx)
 redcapData$birth_date <- as.character(redcapData$birth_date)
@@ -100,7 +101,8 @@ redcapData$folic_g14[is.na(redcapData$folic_g14)] <- 9
 redcapData$extra_drugs[is.na(redcapData$extra_drugs)] <- ""    
 redcapData$firsttri[is.na(redcapData$firsttri)] <- 9        
 redcapData$assconcept[is.na(redcapData$assconcept)] <- 9    
-redcapData$agefa[is.na(redcapData$agefa)] <- 99    
+redcapData$agefa <- as.character(redcapData$agefa)
+redcapData$agefa[is.na(redcapData$agefa)] <- "99"    
 redcapData$agemo[is.na(redcapData$agemo)] <- 99    
 
 redcapData$firstpre[is.na(redcapData$firstpre)] <- 9

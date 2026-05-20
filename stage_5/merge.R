@@ -2,6 +2,10 @@
 rm(list=ls())
 graphics.off()
 
+# packages
+
+library(readxl)
+
 # SOURCE CONFIGURATION FILE ----
 
 
@@ -18,7 +22,7 @@ setwd(baseDir)
 redcapData <- read_csv2(paste0(exportDir, "/redcapData_stage_4_1.csv"))
 
 sdoData <- read_csv2(
-  paste0(gitDir, "/", sdoFileNameMerge),
+  paste0(sdoDir, "/", sdoFileNameMerge),
   col_types = cols(
     birth_date = col_character(),
     death_date = col_character(),
@@ -29,6 +33,16 @@ sdoData <- read_csv2(
 sdoData <- sdoData |> rename(data_source = source)
 sdoData <- sdoData |> rename(prog_paz_neo = prog_paz)
 sdoData$record_id <- as.character(sdoData$record_id)
+
+# PLACE OF BIRTH ----
+# SDO: cod_pres -> place
+
+centriImer <- read_excel(paste0(tablesDir, "/Stabilimenti.xlsx"))
+centriImer$cod_stab <- str_remove(centriImer$cod_stab, "^0+")
+centriIMERlookup <- setNames(centriImer$CentroIMER, centriImer$cod_stab)
+sdoData$place <- centriIMERlookup[as.character(sdoData$cod_pres)]
+sdoData[which(is.na(sdoData$place)), "place"]<-999
+
 
 # CHECK DUPLICATI SDO ----
 
@@ -47,11 +61,6 @@ dup_edc <- redcapData %>%
 # RISOLUZIONE DUPLICATI REDCAP ----
 
 
-
-# Rimuovi duplicati interni
-redcapData <- redcapData[!is.na(redcapData$prog_paz_neo), ]
-sdoData    <- sdoData[!is.na(sdoData$prog_paz_neo), ]
-
 # Priorità a REDCap → togli da SDO quelli già presenti
 sdoMergeData <- sdoData[!(sdoData$prog_paz_neo %in% redcapData$prog_paz_neo), ]
 
@@ -68,10 +77,10 @@ sdoMergeData$weight     <- str_split_i(sdoMergeData$weight, "\\|", 1)
 # -------- DATE CLEANING --------
 
 # Applico a ENTRAMBI funzione
-for (v in date_vars) {
-  redcapData[[v]]    <- clean_date(redcapData[[v]])
-  sdoMergeData[[v]]  <- clean_date(sdoMergeData[[v]])
-}
+#for (v in date_vars) {
+#  redcapData[[v]]    <- clean_date(redcapData[[v]])
+#  sdoMergeData[[v]]  <- clean_date(sdoMergeData[[v]])
+#}
 
 # ------STRUTTURA DATI ---------
 redcapData <- standardize_types(redcapData, vars_numeric)
@@ -117,6 +126,32 @@ postfix_zero_padded <- str_pad(postfix, width = 4, side = "left", pad = 0)
 
 eurocatData$numloc <- str_c(prefix, postfix_zero_padded)
 
+
+#Date formato per DMS
+#bambino
+eurocatData$birth_date <- ymd(eurocatData$birth_date)
+eurocatData$birth_date <- format(eurocatData$birth_date,"%Y/%m/%d" )
+
+#mamma
+idx_real_date <- !is.na(eurocatData$datemo) &
+  eurocatData$datemo != "" &
+  eurocatData$datemo != "XXXX/XX/XX"
+
+eurocatData$datemo[idx_real_date] <- format(
+  ymd(eurocatData$datemo[idx_real_date]),
+  "%Y/%m/%d"
+)
+
+#data di morte
+idx_real_date2 <- !is.na(eurocatData$death_date) &
+  eurocatData$death_date != "" &
+  eurocatData$death_date != "2222/22/22" &
+  eurocatData$death_date != "3333/33/33"
+
+eurocatData$death_date[idx_real_date2] <- format(
+  ymd(eurocatData$death_date[idx_real_date2]),
+  "%Y/%m/%d"
+)
 
 # OUTPUT ----
 

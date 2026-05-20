@@ -80,9 +80,7 @@ redcapData$prog_paz_neo <- cedapDataLinked$prog_paz_neo
 
 redcapData$prog_paz_m <- cedapDataLinked$prog_paz_m
 
-redcapData$cod_pres <- redcapData$centre
-
-redcapData$place <- centriIMERlookup[as.character(redcapData$centre)]
+redcapData$cod_pres <- redcapData$birthCenter
 
 redcapData$mo_smoking <- cedapDataLinked$ABITUDINE_AL_FUMO
 
@@ -108,6 +106,14 @@ redcapData$assconcept <- recode(cedapDataLinked$metodi_PMA,
 
 
 # SYNDROME
+
+#tolgo il puntino
+redcapData$syndrome.factor <- gsub(
+  "\\.",
+  "",
+  redcapData$syndrome.factor
+)
+
 if("syndrome.factor" %in% names(redcapData)){
   
   res <- parse_pipe(redcapData$syndrome.factor)
@@ -117,19 +123,36 @@ if("syndrome.factor" %in% names(redcapData)){
 }
 
 
-#MALFO
+# MALFO
 for(i in 1:8){
   
   var_factor <- paste0("malfo", i, ".factor")
   var <- paste0("malfo", i)
   sp_var <- paste0("sp_malfo", i)
   
+  detail_var <- paste0("malfo", i, "_desc_detail")
+  
   if(var_factor %in% names(redcapData)){
     
     res <- parse_pipe(redcapData[[var_factor]])
     
     redcapData[[var]] <- res$code
-    redcapData[[sp_var]] <- res$desc
+    
+    # descrizione originale
+    desc_original <- res$desc
+    
+    # testo aggiuntivo
+    detail_text <- redcapData[[detail_var]]
+    
+    detail_text <- trimws(as.character(detail_text))
+    detail_text[is.na(detail_text)] <- ""
+    
+    # concatenazione con solo spazio
+    redcapData[[sp_var]] <- ifelse(
+      detail_text != "",
+      paste(desc_original, detail_text),
+      desc_original
+    )
   }
 }
 
@@ -142,9 +165,26 @@ redcapData$illdur1 <- ifelse(!is.na(redcapData$icd10illdur1), redcapData$icd10il
 redcapData$illdur2 <- ifelse(!is.na(redcapData$icd10illdur2), redcapData$icd10illdur2, redcapData$illdur2)
 
 
+# SYNDROME CONCATENAZIONE
+syndrome_detail <- setNames(
+  redcapData$syndrome_desc_detail,
+  redcapData$record_id
+)
+
+detail_text <- syndrome_detail[as.character(redcapData$record_id)]
+
+detail_text <- trimws(as.character(detail_text))
+detail_text[is.na(detail_text)] <- ""
+
+redcapData$sp_syndrome <- ifelse(
+  detail_text != "",
+  paste(redcapData$sp_syndrome, detail_text),
+  redcapData$sp_syndrome
+)
+
 # OUTPUT ----
 
 redcapData$data_source <- "EDC"
 eurocatData <- redcapData[, eurocat_vars_list]
 
-write_csv2(eurocatData, file = paste0(exportDir, "/redcapData_stage_2_1.csv"))
+write_csv2(eurocatData, file = paste0(exportDir, "/redcapData_stage_2_1.csv"), na="")

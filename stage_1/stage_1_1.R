@@ -72,7 +72,4 @@ write_csv2(redcapData_cedap_nonlinked, file=paste0(stage1Dir, "/redcapData_cedap
 
 write_csv2(redcapData, file=paste0(exportDir, "/redcapData_stage_1_1.csv"))
 
-gitDir <- file.path(Sys.getenv("HOME"), "Desktop", "git_hub", "SARA", "export")
-write_csv2(redcapData, file = file.path(gitDir, "redcapData_stage_1_1.csv"))
-
 

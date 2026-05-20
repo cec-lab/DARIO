@@ -1,12 +1,12 @@
-# Version 0.0.1 First stable version
-#prova
+# Version 1.0.2 First stable version
+
 #Clear existing data and graphics
 rm(list=ls())
 graphics.off()
 
 # SOURCE CONFIGURATION FILE ----
 
-baseDir= getwd()
+baseDir=getwd()
 source(paste0(baseDir,"/config.R"))
 
 # SET WORKING DIRECTORY ----
@@ -19,6 +19,13 @@ setwd(baseDir)
 
 # sink(con, append=TRUE)
 # sink(con, append=TRUE, type="message")
+
+# PREPROCESS CEDAP DATASET ----
+print("Preprocessing CedAP data..")
+print("Preprocess CedAP START")
+source(paste0(cedapDir, "/cedap_dedup.R"), echo = T)
+print("Preprocess CedAP END")
+print("Preprocessing CedAP data finshed.")
 
 # PREPROCESS EDC DATASET ----
 
@@ -87,11 +94,3 @@ print("STAGE 6 END")
 
 # sink()
 # sink(type="message")
-
-
-
-
-
-
-
-

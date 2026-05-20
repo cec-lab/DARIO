@@ -22,21 +22,34 @@ sdoData$PROG_PAZ <- as.character(sdoData$PROG_PAZ)
 
 # LINKAGE SURGERY ----
 
-for(i in 1:dim(redcapData)[1]){
-  rn <- grep(redcapData[i, "prog_paz_neo"], sdoData$PROG_PAZ)
-  print(rn)
-   if(length(rn)>0){
-     validSurgType <- str_detect(sdoData[rn, "validation_type"], pattern = "2")
-     print(validSurgType)
-     print(paste("i", i))
-     if(validSurgType == T) {
-       print("surgery ok")
-       redcapData[i, "surgery"] = 1
-     }
-   }
+
+for(i in 1:nrow(redcapData)){
+  
+  current_prog <- redcapData$prog_paz_neo[i]
+  
+  # salta gli NA
+  if(is.na(current_prog)) next
+  
+  # match esatto
+  rn <- which(sdoData$PROG_PAZ == current_prog)
+  
+  if(length(rn) > 0){
+    
+    validSurgType <- str_detect(
+      sdoData$validation_type[rn],
+      pattern = "1"
+    )
+    
+    if(any(validSurgType)){
+      
+      redcapData$surgery[i] <- 1
+      
+    }
+  }
 }
+
 
 # OUT ----
 
-write_csv2(redcapData, file = paste0(exportDir, "/redcapData_stage_3_1.csv"))
+write_csv2(redcapData, file = paste0(exportDir, "/redcapData_stage_3_1.csv"), na="")
 
