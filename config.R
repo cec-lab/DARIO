@@ -24,9 +24,7 @@ tablesDir=paste0(baseDir,"/tables")
 redcapDir=paste0(baseDir,"/redcap")
 cedapDir=paste0(baseDir,"/cedap")
 exportDir=paste0(baseDir,"/export")
-gitDir <- file.path(Sys.getenv("HOME"), "Desktop", "git_hub", "SARA", "export")
-gitDir_templates <- file.path(Sys.getenv("HOME"), "Desktop", "git_hub", "SARA")
-sdoDir <- file.path(gitDir_templates, "stage_12")
+sdoDir <- "/home/imer/works/DI/coorti/2024/SARA-SARAv1.0.1/export"
 stage0Dir=paste0(baseDir,"/stage_0")
 stage1Dir=paste0(baseDir,"/stage_1")
 stage2Dir=paste0(baseDir,"/stage_2")
@@ -42,17 +40,15 @@ library(readxl)
 # GLOBAL VARS ----
 
 ## Cohort date of birth ----
-Year = 2023
+Year = 2024
 
 ## Files ----
 
-<<<<<<< HEAD
-rcFileName <- "redcap_test_data.csv"
-=======
-rcFileName <- "redcap_test_data.csv"                                #mettere il dataset di test creato con script: create_dataset_test_algo.R
->>>>>>> dev_lc_DARIO
+
+rcFileName <- "redcap_data_2024.csv"                                
+
 rcRFileName <- "preprocess_edc.r"
-cedapFileName <- "cedap_plus_2023_dedup.csv"
+cedapFileName <- "cedap_plus_2024_dedup.csv"
 sdoFileName <- "sdo_stage_11b_clinical_rev_export_final.csv"   
 sdoFileNameMerge <- "sdo_stage12_transcode_export.csv"        
 
@@ -63,6 +59,7 @@ stage_2_vars_list <- c(
   "redcap_data_access_group",
   "birth_date",
   "centre",
+  "place",
   "numloc",	
   "sdo_number",
   "gestlength",	
@@ -321,6 +318,7 @@ eurocat_vars_list <- c(
   "data_source",
   "prog_paz_neo",
   "cedap_linked",
+  "place",
   "cod_pres",
   "amniocentesis",
   "chorvilsam",
