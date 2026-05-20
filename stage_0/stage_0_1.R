@@ -32,7 +32,7 @@ redcapData <- redcapData |> filter(cohort==Year)
 
 # PREPROCESS REDCAP DATA ----
 
-# Assign birth centers
+# Assign birth centers (cod_pres)
 
 bc <- rep(NA, dim(redcapData)[1])
 
@@ -42,6 +42,18 @@ for(i in 1:dim(redcapData)[1]){
 }
 
 redcapData$birthCenter <- bc
+
+# Assign birth centers (place)
+
+ps <- rep(NA, dim(redcapData)[1])
+
+for(i in 1:dim(redcapData)[1]){
+  m<-match(redcapData[i, "redcap_data_access_group"], birthCenters$Stabilimento)
+  ps[i]<-unlist(birthCenters[m, "Centro_IMER"])
+}
+
+redcapData$place <- ps
+
 
 redcapData$numloc=0
 
@@ -64,5 +76,5 @@ redcapData |> filter(type==4) |> count()
 redcapData <- redcapData |> select(any_of(selectedVarsStage_0_2))
 redcapData$sdo_number <- as.character(redcapData$sdo_number)
 
-write_csv2(redcapData, file = paste0(exportDir, "/redcapData_stage_0_1.csv"))
+write_csv2(redcapData, file = paste0(exportDir, "/redcapData_stage_0_1.csv"), na="")
 
