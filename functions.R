@@ -1,4 +1,3 @@
-
 linkBySdoNeo = function(inKey, targetKey){
   l=match(inKey, targetKey)
   return(ifelse(!is.na(l)>0, l , 0))
@@ -27,14 +26,17 @@ transcode_complete <- function(df, eurocat_vars_list){
   # ================================
   # 2. DEFAULT NUMERICI BASE
   # ================================
-  if("weight" %in% names(df))     df$weight[is.na(df$weight)] <- 9999
+  if("weight" %in% names(df)) {
+    df$weight[is.na(df$weight) | df$weight == 0] <- 9999
+  }
   if("gestlength" %in% names(df)) df$gestlength[is.na(df$gestlength)] <- 99
   
   # ================================
   # 3. DATE
   # ================================
   if("datemo" %in% names(df)){
-    df$datemo[is.na(df$datemo) | trimws(df$datemo) == ""] <- "xxxx/xx/xx"
+    df$datemo[is.na(df$datemo) | trimws(df$datemo) == ""] <- "XXXX/XX/XX" #PROVA IN MAIUSC COME FATTO NEL 2023 ALTRIMENTI DMS METTE xx/xx/1999
+    df$datemo <- gsub("-", "/", df$datemo)
   }
   
   if("death_date" %in% names(df)){
@@ -48,6 +50,20 @@ transcode_complete <- function(df, eurocat_vars_list){
     ] <- "2222/22/22"
   }
   
+  for(v in c("datemo","birth_date","death_date","agefa")){
+    
+    if(v %in% names(df)){
+      
+      df[[v]] <- as.character(df[[v]])
+      
+      # sostituisce - con / per EDC
+      if("data_source" %in% names(df)){
+        idx <- df$data_source == "EDC"
+        df[[v]][idx] <- gsub("-", "/", df[[v]][idx])
+      }
+    }
+  }
+  
   # ================================
   # 4. SURVIVAL EUROCAT
   # ================================
@@ -56,8 +72,11 @@ transcode_complete <- function(df, eurocat_vars_list){
     surv <- df$survival
     d    <- df$death_date
     
+    # type 4 -> survival 2 secondo guida 1.5
+    surv[df$type == 4] <- 2
+    
     # non live birth → morto
-    surv[df$type %in% c(2,3,4)] <- 2
+    surv[df$type %in% c(2,3)] <- 2
     
     # type ignoto
     surv[df$type == 9] <- 9
@@ -65,20 +84,65 @@ transcode_complete <- function(df, eurocat_vars_list){
     # vivo a 1 anno
     surv[df$type == 1 & d == "2222/22/22"] <- 1
     
-    # morto (data reale o xxxx)
+    # morto (data reale)
     surv[df$type == 1 & !(d %in% c("2222/22/22","3333/33/33"))] <- 2
+    
+    # morto dopo 7 giorni -> survival = 1
+    if(all(c("birth_date","death_date") %in% names(df))){
+      
+      birth_real <- as.Date(df$birth_date, format = "%Y/%m/%d")
+      death_real <- as.Date(df$death_date, format = "%Y/%m/%d")
+      
+      days_to_death <- as.numeric(
+        difftime(death_real,
+                 birth_real,
+                 units = "days")
+      )
+      
+      surv[
+        df$type == 1 &
+          surv == 2 &
+          !is.na(days_to_death) &
+          days_to_death > 7
+      ] <- 1
+    }
     
     # stato ignoto
     surv[df$type == 1 & d == "3333/33/33"] <- 9
     
+    if(all(c("dt_nasc","dt_dim") %in% names(df))){
+      
+      days_to_dim <- as.numeric(
+        difftime(df$dt_dim,
+                 df$dt_nasc,
+                 units = "days")
+      )
+      
+      surv[
+        df$type == 1 &
+          !is.na(days_to_dim) &
+          days_to_dim < 7 &
+          (
+            is.na(d) |
+              trimws(d) == "" |
+              d %in% c("2222/22/22","3333/33/33")
+          )
+      ] <- 3
+    }
     df$survival <- surv
   }
+  
   
   # ================================
   # 5. MALFORMAZIONI
   # ================================
   for(v in paste0("malfo", 1:8)){
     if(v %in% names(df)){
+      
+      # rimuove i punti dai codici
+      df[[v]] <- gsub("\\.", "", df[[v]])
+      
+      # missing/9 -> vuoto
       df[[v]][is.na(df[[v]]) | df[[v]] == 9 | df[[v]] == "9"] <- ""
     }
   }
@@ -116,21 +180,37 @@ transcode_complete <- function(df, eurocat_vars_list){
   }
   
   # ================================
-  # 9. MODIFICHE SPECIFICHE
+  # 9. MODIFICHE SPECIFICHE <- come Toscana (presyn e premal)
   # ================================
   
   if("pm" %in% names(df)){
     df$pm[is.na(df$pm) | df$pm == 9] <- 3
+    
+    # live birth vivo a 1 anno -> pm vuoto
+    if(all(c("type","death_date") %in% names(df))){
+      df$pm[df$type == 1 & df$death_date == "2222/22/22"] <- ""
+    }
   }
   
   if("presyn" %in% names(df)){
     df$presyn <- as.character(df$presyn)
+    
+    # 3 -> 1
+    df$presyn[df$presyn == "3"] <- "1"
+    
+    # missing/9 -> vuoto
     df$presyn[is.na(df$presyn) | df$presyn == 9 | df$presyn == "9"] <- ""
   }
   
   for(v in paste0("premal",1:8)){
     if(v %in% names(df)){
+      
       df[[v]] <- as.character(df[[v]])
+      
+      # 3 -> 1
+      df[[v]][df[[v]] == "3"] <- "1"
+      
+      # missing/9 -> vuoto
       df[[v]][is.na(df[[v]]) | df[[v]] == 9 | df[[v]] == "9"] <- ""
     }
   }
@@ -145,6 +225,18 @@ transcode_complete <- function(df, eurocat_vars_list){
     df$nbrmalf[is.na(df$nbrmalf) | df$nbrmalf == 9 | df$nbrmalf == "9"] <- ""
   }
   
+  # condisc = 1 solo per SDO
+  if(all(c("condisc","data_source") %in% names(df))){
+    df$condisc[df$data_source == "SDO"] <- 1
+  }
+  # nbrmalf = 9 per SDO
+  if(all(c("nbrmalf","nbrbaby","data_source") %in% names(df))){
+    
+    df$nbrmalf[
+      df$nbrbaby > 1 &
+        df$data_source == "SDO"
+    ] <- "9"
+  }
   # ================================
   # 10. NUMERICI → 99
   # ================================
@@ -158,17 +250,28 @@ transcode_complete <- function(df, eurocat_vars_list){
     df[[v]][is.na(df[[v]]) | df[[v]] == 9] <- 99
   }
   
+  # whendisc diverso da 6 -> agedisc vuoto
+  if(all(c("whendisc","agedisc") %in% names(df))){
+    df$agedisc[df$whendisc != 6] <- ""
+  }
+  
   # ================================
   # 11. MADRE
   # ================================
-  if("occupmo" %in% names(df))       df$occupmo[is.na(df$occupmo)] <- 9999
-  if("mocitizenship" %in% names(df)) df$mocitizenship[is.na(df$mocitizenship)] <- 999
+  if("occupmo" %in% names(df)) {
+    df$occupmo[is.na(df$occupmo)] <- 9999
+    df$occupmo[df$occupmo == 99999] <- 9999
+  }
+  
+  if("mocitizenship" %in% names(df)) {
+    df$mocitizenship[is.na(df$mocitizenship)] <- 999
+  }
   
   # ================================
   # 12. STRINGHE GENERICHE
   # ================================
   vars_char <- c(
-    "pm_notes","illbef1","illbef2","illdur1","illdur2",
+    "pm_notes",
     "omim","orpha","extra_drugs",
     "drugs1","drugs2","drugs3","drugs4","drugs5",
     "sdo_number","resmo","imer_key","prog_paz_neo",
@@ -181,14 +284,33 @@ transcode_complete <- function(df, eurocat_vars_list){
   }
   
   # ================================
-  # 13. FIX ILLDUR
+  # 13. FIX ILLDUR e ILLBEF
   # ================================
-  for(v in c("illdur1","illdur2")){
+  for(v in c("illdur1","illdur2","illbef1","illbef2")){
+    
     if(v %in% names(df)){
+      
       df[[v]] <- as.character(df[[v]])
-      df[[v]][is.na(df[[v]]) | trimws(df[[v]]) %in% c("", "9")] <- "9"
-      df[[v]] <- suppressWarnings(as.numeric(df[[v]]))
+      
+      df[[v]][
+        is.na(df[[v]]) | trimws(df[[v]]) == ""
+      ] <- "9"
+      
     }
+  }
+  
+  # coerenza illbef
+  if(all(c("illbef1","illbef2") %in% names(df))){
+    
+    df$illbef2[df$illbef1 == "0"] <- "0"
+    df$illbef2[df$illbef1 == "9"] <- "9"
+  }
+  
+  # coerenza illdur
+  if(all(c("illdur1","illdur2") %in% names(df))){
+    
+    df$illdur2[df$illdur1 == "0"] <- "0"
+    df$illdur2[df$illdur1 == "9"] <- "9"
   }
   
   # ================================
@@ -215,6 +337,7 @@ transcode_complete <- function(df, eurocat_vars_list){
 
 
 
+
 standardize_types <- function(df, vars_numeric){
   
   # variabili che DEVONO restare character
@@ -232,7 +355,8 @@ standardize_types <- function(df, vars_numeric){
   
   df <- df %>%
     mutate(across(all_of(vars_char), as.character)) %>%
-    mutate(across(all_of(vars_numeric), ~ suppressWarnings(as.numeric(.))))
+    mutate(across(all_of(vars_numeric), ~ suppressWarnings(as.numeric(.))))  %>%
+    mutate(across(all_of(vars_numeric), ~ suppressWarnings(round(.,1)))) 
   
   return(df)
 }
@@ -339,33 +463,33 @@ resolve_redcap_duplicates <- function(df){
 
 #date stage 5
 
-date_vars <- c("birth_date", "death_date", "datemo")
-
-clean_date <- function(x){
-  
-  x <- as.character(x)
-  out <- rep(NA_character_, length(x))
-  
-  # ================================
-  # yyyy-mm-dd
-  # ================================
-  idx_iso <- grepl("^\\d{4}-\\d{2}-\\d{2}$", x)
-  out[idx_iso] <- format(as.Date(x[idx_iso], "%Y-%m-%d"), "%Y/%m/%d")
-  
-  # ================================
-  # dd/mm/yyyy
-  # ================================
-  idx_full <- grepl("^\\d{2}/\\d{2}/\\d{4}$", x)
-  out[idx_full] <- format(as.Date(x[idx_full], "%d/%m/%Y"), "%Y/%m/%d")
-  
-  # ================================
-  # dd/mm/yy
-  # ================================
-  idx_short <- grepl("^\\d{2}/\\d{2}/\\d{2}$", x)
-  if(any(idx_short)){
-    tmp <- as.Date(x[idx_short], "%d/%m/%y")
-    out[idx_short] <- format(tmp, "%Y/%m/%d")
-  }
-  
-  return(out)
-}
+# date_vars <- c("birth_date", "death_date", "datemo")
+# 
+# clean_date <- function(x){
+#   
+#   x <- as.character(x)
+#   out <- rep(NA_character_, length(x))
+#   
+#   # ================================
+#   # yyyy-mm-dd
+#   # ================================
+#   idx_iso <- grepl("^\\d{4}-\\d{2}-\\d{2}$", x)
+#   out[idx_iso] <- format(as.Date(x[idx_iso], "%Y-%m-%d"), "%Y/%m/%d")
+#   
+#   # ================================
+#   # dd/mm/yyyy
+#   # ================================
+#   idx_full <- grepl("^\\d{2}/\\d{2}/\\d{4}$", x)
+#   out[idx_full] <- format(as.Date(x[idx_full], "%d/%m/%Y"), "%Y/%m/%d")
+#   
+#   # ================================
+#   # dd/mm/yy
+#   # ================================
+#   idx_short <- grepl("^\\d{2}/\\d{2}/\\d{2}$", x)
+#   if(any(idx_short)){
+#     tmp <- as.Date(x[idx_short], "%d/%m/%y")
+#     out[idx_short] <- format(tmp, "%Y/%m/%d")
+#   }
+#   
+#   return(out)
+# }
